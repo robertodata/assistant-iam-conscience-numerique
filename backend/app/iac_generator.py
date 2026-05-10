@@ -9,16 +9,31 @@ def build_cloudformation_template(
     trust_policy: dict,
     permission_policy: dict,
 ) -> str:
-    actions = permission_policy["Statement"][0]["Action"]
-    resources = permission_policy["Statement"][0]["Resource"]
     principal_service = trust_policy["Statement"][0]["Principal"]["Service"]
+    statement_lines = []
 
-    action_lines = "\n".join(f"                  - {action}" for action in actions)
+    for statement in permission_policy["Statement"]:
+        action_lines = "\n".join(
+            f"                  - {action}" for action in statement["Action"]
+        )
+        resources = statement["Resource"]
 
-    if isinstance(resources, list):
-        resource_lines = "\n".join(f"                  - {resource}" for resource in resources)
-    else:
-        resource_lines = f"                  - {resources}"
+        if isinstance(resources, list):
+            resource_lines = "\n".join(
+                f"                  - {resource}" for resource in resources
+            )
+        else:
+            resource_lines = f"                  - {resources}"
+
+        statement_lines.append(
+            f"""              - Effect: Allow
+                Action:
+{action_lines}
+                Resource:
+{resource_lines}"""
+        )
+
+    cloudformation_statements = "\n".join(statement_lines)
 
     # CloudFormation permet de decrire une infrastructure AWS dans un fichier.
     # Ici, on cree seulement un exemple pedagogique avec un role IAM et sa policy.
@@ -42,11 +57,7 @@ Resources:
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
-              - Effect: Allow
-                Action:
-{action_lines}
-                Resource:
-{resource_lines}
+{cloudformation_statements}
 """
 
 

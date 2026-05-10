@@ -26,6 +26,12 @@ def test_parse_request_for_lambda_s3_read_sentence():
         "aws_service_type": "lambda",
         "service": "s3",
         "action": "read",
+        "permissions": [
+            {
+                "service": "s3",
+                "action": "read",
+            }
+        ],
         "resource_name": None,
     }
 
@@ -41,6 +47,12 @@ def test_parse_request_for_ec2_dynamodb_write_sentence():
         "aws_service_type": "ec2",
         "service": "dynamodb",
         "action": "write",
+        "permissions": [
+            {
+                "service": "dynamodb",
+                "action": "write",
+            }
+        ],
         "resource_name": None,
     }
 
@@ -54,6 +66,7 @@ def test_parse_request_for_ec2_dynamodb_write_sentence():
                 "aws_service_type": "lambda",
                 "service": "s3",
                 "action": "read",
+                "permissions": [{"service": "s3", "action": "read"}],
                 "resource_name": None,
             },
         ),
@@ -63,6 +76,7 @@ def test_parse_request_for_ec2_dynamodb_write_sentence():
                 "aws_service_type": "lambda",
                 "service": None,
                 "action": "read",
+                "permissions": [],
                 "resource_name": None,
             },
         ),
@@ -72,6 +86,7 @@ def test_parse_request_for_ec2_dynamodb_write_sentence():
                 "aws_service_type": "ec2",
                 "service": "dynamodb",
                 "action": "write",
+                "permissions": [{"service": "dynamodb", "action": "write"}],
                 "resource_name": None,
             },
         ),
@@ -81,6 +96,7 @@ def test_parse_request_for_ec2_dynamodb_write_sentence():
                 "aws_service_type": "ec2",
                 "service": "dynamodb",
                 "action": "write",
+                "permissions": [{"service": "dynamodb", "action": "write"}],
                 "resource_name": None,
             },
         ),
@@ -90,6 +106,7 @@ def test_parse_request_for_ec2_dynamodb_write_sentence():
                 "aws_service_type": None,
                 "service": "s3",
                 "action": "write",
+                "permissions": [{"service": "s3", "action": "write"}],
                 "resource_name": None,
             },
         ),
@@ -132,6 +149,26 @@ def test_parse_request_without_resource_name_returns_null():
     assert response.json()["resource_name"] is None
 
 
+def test_parse_request_detects_multiple_permissions():
+    response = client.post(
+        "/parse-request",
+        json={"text": "Une Lambda lit S3 et ecrit dans DynamoDB"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["aws_service_type"] == "lambda"
+    assert response.json()["permissions"] == [
+        {
+            "service": "s3",
+            "action": "read",
+        },
+        {
+            "service": "dynamodb",
+            "action": "write",
+        },
+    ]
+
+
 def test_generate_policy_for_s3_read_lambda_bucket():
     response = client.post(
         "/generate-policy",
@@ -150,6 +187,40 @@ def test_generate_policy_for_s3_read_lambda_bucket():
     assert data["role_name"] == "lambda-s3-read-role"
     assert "s3:GetObject" in actions
     assert "s3:ListBucket" in actions
+
+
+def test_generate_policy_supports_multiple_permissions():
+    response = client.post(
+        "/generate-policy",
+        json={
+            "aws_service_type": "lambda",
+            "permissions": [
+                {
+                    "service": "s3",
+                    "action": "read",
+                },
+                {
+                    "service": "dynamodb",
+                    "action": "write",
+                },
+            ],
+            "resource_name": "ma-ressource",
+        },
+    )
+
+    data = response.json()
+
+    assert response.status_code == 200
+    assert data["role_name"] == "lambda-multi-service-role"
+    assert len(data["policy"]["Statement"]) == 2
+    assert data["policy"]["Statement"][0]["Action"] == [
+        "s3:GetObject",
+        "s3:ListBucket",
+    ]
+    assert data["policy"]["Statement"][1]["Action"] == ["dynamodb:PutItem"]
+    assert "dynamodb:PutItem" in [
+        explanation["permission"] for explanation in data["explanations"]
+    ]
 
 
 def test_generate_policy_without_resource_name_returns_warning():
@@ -252,6 +323,64 @@ def test_generate_policy_returns_validation_findings_key():
 
     assert response.status_code == 200
     assert data["validation_findings"] == []
+
+
+def test_generate_policy_uses_beginner_explanations_by_default():
+    response = client.post(
+        "/generate-policy",
+        json={
+            "service": "s3",
+            "action": "read",
+            "aws_service_type": "lambda",
+            "resource_name": "mon-bucket",
+        },
+    )
+
+    data = response.json()
+
+    assert response.status_code == 200
+    assert data["explanations"][0]["description"] == (
+        "s3:GetObject permet de lire des fichiers dans un bucket S3."
+    )
+
+
+def test_generate_policy_uses_expert_explanations():
+    response = client.post(
+        "/generate-policy",
+        json={
+            "service": "s3",
+            "action": "read",
+            "aws_service_type": "lambda",
+            "resource_name": "mon-bucket",
+            "mode": "expert",
+        },
+    )
+
+    data = response.json()
+
+    assert response.status_code == 200
+    assert data["explanations"][0]["description"] == (
+        "s3:GetObject autorise les operations GET sur les objets S3 et doit etre limite a des ARN precis."
+    )
+
+
+def test_generate_policy_uses_expert_validation_recommendations():
+    response = client.post(
+        "/generate-policy",
+        json={
+            "service": "s3",
+            "action": "read",
+            "aws_service_type": "lambda",
+            "mode": "expert",
+        },
+    )
+
+    data = response.json()
+
+    assert response.status_code == 200
+    assert data["validation_findings"][0]["recommendation"] == (
+        "Remplacer '*' par des ARN explicites et, si possible, ajouter des conditions IAM."
+    )
 
 
 @pytest.mark.parametrize(

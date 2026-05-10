@@ -25,6 +25,28 @@ def find_keyword(text: str, keywords: dict[str, list[str]]) -> str | None:
     return None
 
 
+service_keywords = {
+    "s3": ["s3", "bucket"],
+    "dynamodb": ["dynamodb", "dynamo db", "table dynamodb"],
+}
+
+
+action_keywords = {
+    # Les accents sont retires par normalize_text avant la detection.
+    "read": ["lire", "lit", "lis", "lise", "lecture", "read", "consulter", "acces lecture"],
+    "write": [
+        "ecrire",
+        "ecrit",
+        "ecris",
+        "ecriture",
+        "write",
+        "modifier",
+        "ajouter",
+        "acces ecriture",
+    ],
+}
+
+
 def extract_resource_name(text: str) -> str | None:
     # On detecte uniquement des formulations simples et pedagogiques.
     resource_match = re.search(
@@ -43,7 +65,30 @@ def extract_resource_name(text: str) -> str | None:
     return resource_name
 
 
-def parse_user_request(text: str) -> dict[str, str | None]:
+def detect_permissions(text: str) -> list[dict[str, str]]:
+    permissions = []
+    text_parts = re.split(r"\bet\b|,|;", text)
+
+    for part in text_parts:
+        service = find_keyword(part, service_keywords)
+        action = find_keyword(part, action_keywords)
+
+        if service and action:
+            permissions.append({"service": service, "action": action})
+
+    if permissions:
+        return permissions
+
+    service = find_keyword(text, service_keywords)
+    action = find_keyword(text, action_keywords)
+
+    if service and action:
+        return [{"service": service, "action": action}]
+
+    return []
+
+
+def parse_user_request(text: str) -> dict:
     normalized_text = normalize_text(text)
 
     aws_service_type = find_keyword(
@@ -53,27 +98,15 @@ def parse_user_request(text: str) -> dict[str, str | None]:
             "ec2": ["ec2", "instance ec2", "serveur ec2"],
         },
     )
-    service = find_keyword(
+    permissions = detect_permissions(normalized_text)
+    first_permission = permissions[0] if permissions else {}
+    service = first_permission.get("service") or find_keyword(
         normalized_text,
-        {
-            "s3": ["s3", "bucket"],
-            "dynamodb": ["dynamodb", "dynamo db", "table dynamodb"],
-        },
+        service_keywords,
     )
-    action = find_keyword(
+    action = first_permission.get("action") or find_keyword(
         normalized_text,
-        {
-            # Les accents sont retires par normalize_text avant la detection.
-            "read": ["lire", "lis", "lise", "lecture", "read", "consulter", "acces lecture"],
-            "write": [
-                "ecrire",
-                "ecriture",
-                "write",
-                "modifier",
-                "ajouter",
-                "acces ecriture",
-            ],
-        },
+        action_keywords,
     )
     resource_name = extract_resource_name(normalized_text)
 
@@ -81,5 +114,6 @@ def parse_user_request(text: str) -> dict[str, str | None]:
         "aws_service_type": aws_service_type,
         "service": service,
         "action": action,
+        "permissions": permissions,
         "resource_name": resource_name,
     }

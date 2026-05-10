@@ -1,66 +1,63 @@
 # Ce fichier contient une validation IAM pedagogique avant l'affichage final.
 # Les regles restent simples et explicites pour faciliter l'apprentissage.
 
-
-sensitive_permissions = {
-    "s3:DeleteBucket": {
-        "severity": "high",
-        "message": "Cette permission permet de supprimer un bucket S3.",
-        "recommendation": "A utiliser seulement dans des roles d'administration tres controles.",
-    },
-    "iam:PassRole": {
-        "severity": "high",
-        "message": "Cette permission permet de transmettre un role IAM a un service AWS.",
-        "recommendation": "Limiter cette permission a des roles precis avec une ressource ARN explicite.",
-    },
-    "iam:CreateUser": {
-        "severity": "high",
-        "message": "Cette permission permet de creer de nouveaux utilisateurs IAM.",
-        "recommendation": "Eviter cette permission dans les roles applicatifs standards.",
-    },
-    "iam:AttachRolePolicy": {
-        "severity": "high",
-        "message": "Cette permission permet d'attacher des policies a un role IAM.",
-        "recommendation": "Restreindre cette permission aux administrateurs IAM.",
-    },
-}
+from .iam_rules import IAM_SENSITIVE_RULES
 
 
 def validate_iam_policy(
     actions: list[str],
     resource: str | list[str],
+    mode: str = "beginner",
 ) -> list[dict[str, str]]:
     findings = []
+    message_key = "expert_message" if mode == "expert" else "beginner_message"
+    recommendation_key = (
+        "expert_recommendation" if mode == "expert" else "beginner_recommendation"
+    )
 
     for action in actions:
         if action == "*":
+            if mode == "expert":
+                message = "Wildcard action '*' autorise toutes les actions IAM compatibles avec la ressource cible."
+                recommendation = "Remplacer '*' par des actions explicites et separer les permissions par besoin fonctionnel."
+            else:
+                message = "Wildcard action '*' donne tous les droits possibles."
+                recommendation = "Remplacer '*' par une liste precise d'actions necessaires."
+
             findings.append(
                 {
                     "severity": "high",
                     "permission": action,
-                    "message": "Wildcard action '*' donne tous les droits possibles.",
-                    "recommendation": "Remplacer '*' par une liste precise d'actions necessaires.",
+                    "message": message,
+                    "recommendation": recommendation,
                 }
             )
 
-        if action in sensitive_permissions:
-            finding = sensitive_permissions[action]
+        if action in IAM_SENSITIVE_RULES:
+            finding = IAM_SENSITIVE_RULES[action]
             findings.append(
                 {
                     "severity": finding["severity"],
                     "permission": action,
-                    "message": finding["message"],
-                    "recommendation": finding["recommendation"],
+                    "message": finding[message_key],
+                    "recommendation": finding[recommendation_key],
                 }
             )
 
     if resource == "*":
+        if mode == "expert":
+            message = "Resource '*' elargit le scope a toutes les ressources compatibles et augmente le rayon d'impact."
+            recommendation = "Remplacer '*' par des ARN explicites et, si possible, ajouter des conditions IAM."
+        else:
+            message = "Resource '*' applique les permissions a toutes les ressources compatibles."
+            recommendation = "Preciser un ARN de ressource pour mieux respecter le Least Privilege."
+
         findings.append(
             {
                 "severity": "medium",
                 "permission": "Resource *",
-                "message": "Resource '*' applique les permissions a toutes les ressources compatibles.",
-                "recommendation": "Preciser un ARN de ressource pour mieux respecter le Least Privilege.",
+                "message": message,
+                "recommendation": recommendation,
             }
         )
 

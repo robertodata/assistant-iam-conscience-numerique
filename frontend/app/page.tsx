@@ -17,6 +17,11 @@ const awsServiceTypes = [
   { label: "ec2", value: "ec2" },
 ];
 
+const userModes = [
+  { label: "Débutant", value: "beginner" },
+  { label: "Expert", value: "expert" },
+];
+
 type PermissionExplanation = {
   permission: string;
   description: string;
@@ -40,18 +45,26 @@ type ValidationFinding = {
   recommendation: string;
 };
 
+type DetectedPermission = {
+  service: string;
+  action: string;
+};
+
 type ParsedRequest = {
   aws_service_type: string | null;
   service: string | null;
   action: string | null;
+  permissions?: DetectedPermission[];
   resource_name: string | null;
 };
 
 type GeneratePolicyPayload = {
   service: string;
   action: string;
+  permissions?: DetectedPermission[];
   aws_service_type: string;
   resource_name: string | null;
+  mode: string;
 };
 
 type GenerationHistoryEntry = GeneratePolicyPayload & {
@@ -141,6 +154,10 @@ function formatDetectedValue(value: string | null) {
   return value ?? "Non détecté";
 }
 
+function formatUserMode(mode: string) {
+  return mode === "expert" ? "Expert" : "Débutant";
+}
+
 export default function Home() {
   const [roleName, setRoleName] = useState<string | null>(null);
   const [trustPolicy, setTrustPolicy] = useState<object | null>(null);
@@ -165,6 +182,7 @@ export default function Home() {
   const [selectedService, setSelectedService] = useState("s3");
   const [selectedAction, setSelectedAction] = useState("read");
   const [awsServiceType, setAwsServiceType] = useState("lambda");
+  const [userMode, setUserMode] = useState("beginner");
   const [resourceName, setResourceName] = useState("");
   const [userRequestText, setUserRequestText] = useState(
     "Je veux qu'une Lambda lise un bucket S3",
@@ -200,8 +218,10 @@ export default function Home() {
         body: JSON.stringify({
           service: payload.service,
           action: payload.action,
+          permissions: payload.permissions,
           aws_service_type: payload.aws_service_type,
           resource_name: payload.resource_name,
+          mode: payload.mode,
         }),
       });
 
@@ -261,6 +281,7 @@ export default function Home() {
       action: selectedAction,
       aws_service_type: awsServiceType,
       resource_name: resourceName.trim() || null,
+      mode: userMode,
     });
   }
 
@@ -389,8 +410,10 @@ export default function Home() {
       await generatePolicyWithPayload({
         service: data.service,
         action: data.action,
+        permissions: data.permissions,
         aws_service_type: data.aws_service_type,
         resource_name: extractedResourceName || resourceName.trim() || null,
+        mode: userMode,
       });
     } catch (currentError) {
       setIsNlpSuccess(false);
@@ -436,6 +459,7 @@ export default function Home() {
     setSelectedAction(entry.action);
     setAwsServiceType(entry.aws_service_type);
     setResourceName(entry.resource_name ?? "");
+    setUserMode(entry.mode);
   }
 
   function clearHistory() {
@@ -552,6 +576,7 @@ export default function Home() {
               L'assistant analyse la phrase utilisateur avant de générer les
               permissions IAM.
               Vous pouvez vérifier l'analyse avant de générer le rôle IAM.
+              Une policy IAM peut contenir plusieurs permissions.
             </p>
 
             <div className="detected-grid">
@@ -587,6 +612,23 @@ export default function Home() {
               </article>
             </div>
 
+            {parsedRequest.permissions && parsedRequest.permissions.length > 0 ? (
+              <div className="detected-permissions">
+                <h3>Permissions détectées</h3>
+                <div className="permission-chip-list">
+                  {parsedRequest.permissions.map((permission) => (
+                    <span
+                      className="permission-chip"
+                      key={`${permission.service}-${permission.action}`}
+                    >
+                      <strong>{permission.service}</strong>
+                      <em>{permission.action}</em>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
             {isNlpSuccess ? (
               <div className="analysis-actions">
                 <button type="button" onClick={applyParsedRequestToForm}>
@@ -611,6 +653,7 @@ export default function Home() {
 
           <p className="helper-text">
             Les sélecteurs permettent de construire dynamiquement un rôle IAM.
+            Le mode utilisateur adapte le niveau de détail des explications.
           </p>
 
           <div className="selector-grid">
@@ -655,6 +698,25 @@ export default function Home() {
                 ))}
               </select>
             </label>
+
+            <label className="field">
+              <span>Mode utilisateur</span>
+              <select
+                value={userMode}
+                onChange={(event) => setUserMode(event.target.value)}
+              >
+                {userModes.map((mode) => (
+                  <option key={mode.value} value={mode.value}>
+                    {mode.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="active-mode">
+            <span>Mode actif</span>
+            <strong>{formatUserMode(userMode)}</strong>
           </div>
 
           <label className="field">
@@ -705,6 +767,9 @@ export default function Home() {
                     <strong>
                       {entry.aws_service_type} / {entry.service} / {entry.action}
                     </strong>
+                    <span className="history-resource">
+                      Mode : {formatUserMode(entry.mode)}
+                    </span>
                     <span className="history-resource">
                       Ressource : {entry.resource_name ?? "Non renseignée"}
                     </span>
