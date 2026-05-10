@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+import pytest
 
 from app.main import app
 
@@ -11,6 +12,66 @@ def test_health_returns_status_ok():
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def test_parse_request_for_lambda_s3_read_sentence():
+    response = client.post(
+        "/parse-request",
+        json={"text": "Je veux qu'une Lambda lise un bucket S3"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "aws_service_type": "lambda",
+        "service": "s3",
+        "action": "read",
+    }
+
+
+def test_parse_request_for_ec2_dynamodb_write_sentence():
+    response = client.post(
+        "/parse-request",
+        json={"text": "EC2 doit ecrire dans une table DynamoDB"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "aws_service_type": "ec2",
+        "service": "dynamodb",
+        "action": "write",
+    }
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        (
+            "La fonction Lambda doit consulter un bucket S3",
+            {"aws_service_type": "lambda", "service": "s3", "action": "read"},
+        ),
+        (
+            "Je veux un acces lecture pour une fonction Lambda",
+            {"aws_service_type": "lambda", "service": None, "action": "read"},
+        ),
+        (
+            "Un serveur EC2 doit ajouter des donnees dans DynamoDB",
+            {"aws_service_type": "ec2", "service": "dynamodb", "action": "write"},
+        ),
+        (
+            "Une instance EC2 a besoin d'un acces ecriture sur une table DynamoDB",
+            {"aws_service_type": "ec2", "service": "dynamodb", "action": "write"},
+        ),
+        (
+            "Je veux modifier un bucket S3",
+            {"aws_service_type": None, "service": "s3", "action": "write"},
+        ),
+    ],
+)
+def test_parse_request_supports_multiple_natural_formulations(text, expected):
+    response = client.post("/parse-request", json={"text": text})
+
+    assert response.status_code == 200
+    assert response.json() == expected
 
 
 def test_generate_policy_for_s3_read_lambda_bucket():

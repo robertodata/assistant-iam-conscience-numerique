@@ -11,6 +11,7 @@ from .iam_engine import (
     build_trust_policy,
     get_actions_for_request,
 )
+from .nlp_parser import parse_user_request
 from .security_analyzer import (
     analyze_security_findings,
     calculate_security_score,
@@ -38,9 +39,20 @@ class PolicyRequest(BaseModel):
     aws_service_type: str = "lambda"
 
 
+class ParseRequest(BaseModel):
+    text: str
+
+
 @app.get("/health")
 def health_check() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.post("/parse-request")
+def parse_request(request: ParseRequest) -> dict[str, str | None]:
+    # Ce endpoint transforme une phrase utilisateur en intention IAM simple.
+    # Pour l'instant, il utilise uniquement des mots-cles et aucune IA externe.
+    return parse_user_request(request.text)
 
 
 @app.post("/generate-policy")

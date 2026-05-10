@@ -147,6 +147,29 @@ button:hover {
   margin-top: 18px;
 }
 
+.parser-card {
+  display: grid;
+  gap: 16px;
+}
+
+.parser-card .field {
+  margin-top: 4px;
+}
+
+.parser-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.parser-actions button:last-child {
+  background: #25324a;
+}
+
+.parser-actions button:last-child:hover {
+  background: #151f31;
+}
+
 .generate-button {
   width: 100%;
   margin-top: 20px;
@@ -440,6 +463,10 @@ button:hover {
 
   .policy-actions {
     justify-content: flex-start;
+  }
+
+  .parser-actions {
+    grid-template-columns: 1fr;
   }
 
   .template-card .card-header button {

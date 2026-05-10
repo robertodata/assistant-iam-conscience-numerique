@@ -33,6 +33,19 @@ type SecurityFinding = {
   description: string;
 };
 
+type ParsedRequest = {
+  aws_service_type: string | null;
+  service: string | null;
+  action: string | null;
+};
+
+type GeneratePolicyPayload = {
+  service: string;
+  action: string;
+  aws_service_type: string;
+  resource_name: string | null;
+};
+
 function getSecurityBadgeClass(level: string) {
   if (level === "Bon") {
     return "badge badge-good";
@@ -61,6 +74,36 @@ function getFindingSeverityLabel(severity: SecurityFinding["severity"]) {
   return "Low";
 }
 
+function extractResourceName(text: string) {
+  const normalizedText = text
+    .toLowerCase()
+    .replace(/[.,;:!?]/g, " ")
+    .replace(/\s+/g, " ");
+  const resourceMatch = normalizedText.match(
+    /\b(?:bucket|table)\s+(?:s3\s+|dynamodb\s+)?(?:nommee?\s+|appelee?\s+|le\s+|la\s+|l'|d'|de\s+)?([a-z0-9][a-z0-9._-]*)/,
+  );
+
+  return resourceMatch?.[1] ?? "";
+}
+
+function buildNlpWarnings(parsedRequest: ParsedRequest) {
+  const warnings = [];
+
+  if (!parsedRequest.aws_service_type) {
+    warnings.push("Le moteur n'a pas détecté le type de rôle IAM.");
+  }
+
+  if (!parsedRequest.service) {
+    warnings.push("Le moteur n'a pas détecté le service AWS.");
+  }
+
+  if (!parsedRequest.action) {
+    warnings.push("Le moteur n'a pas détecté l'action IAM.");
+  }
+
+  return warnings;
+}
+
 export default function Home() {
   const [roleName, setRoleName] = useState<string | null>(null);
   const [trustPolicy, setTrustPolicy] = useState<object | null>(null);
@@ -83,13 +126,23 @@ export default function Home() {
   const [selectedAction, setSelectedAction] = useState("read");
   const [awsServiceType, setAwsServiceType] = useState("lambda");
   const [resourceName, setResourceName] = useState("");
+  const [userRequestText, setUserRequestText] = useState(
+    "Je veux qu'une Lambda lise un bucket S3",
+  );
+  const [parsedRequest, setParsedRequest] = useState<ParsedRequest | null>(
+    null,
+  );
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [isParsing, setIsParsing] = useState(false);
+  const [nlpWarnings, setNlpWarnings] = useState<string[]>([]);
+  const [isNlpSuccess, setIsNlpSuccess] = useState(false);
   const [policyActionMessage, setPolicyActionMessage] = useState<string | null>(
     null,
   );
   const [error, setError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  async function generatePolicy() {
+  async function generatePolicyWithPayload(payload: GeneratePolicyPayload) {
     setIsGenerating(true);
     setError(null);
     setPolicyActionMessage(null);
@@ -101,10 +154,10 @@ export default function Home() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          service: selectedService,
-          action: selectedAction,
-          aws_service_type: awsServiceType,
-          resource_name: resourceName.trim() || null,
+          service: payload.service,
+          action: payload.action,
+          aws_service_type: payload.aws_service_type,
+          resource_name: payload.resource_name,
         }),
       });
 
@@ -148,6 +201,15 @@ export default function Home() {
     }
   }
 
+  async function generatePolicy() {
+    await generatePolicyWithPayload({
+      service: selectedService,
+      action: selectedAction,
+      aws_service_type: awsServiceType,
+      resource_name: resourceName.trim() || null,
+    });
+  }
+
   async function copyPolicyJson() {
     if (!policyResult) {
       return;
@@ -177,6 +239,130 @@ export default function Home() {
     // On copie le code Terraform pour pouvoir le reutiliser facilement.
     await navigator.clipboard.writeText(terraformTemplate);
     setPolicyActionMessage("Terraform copié !");
+  }
+
+  async function parseUserRequest() {
+    setIsParsing(true);
+    setParseError(null);
+    setParsedRequest(null);
+    setNlpWarnings([]);
+    setIsNlpSuccess(false);
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/parse-request", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text: userRequestText,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Le backend n'a pas pu analyser la demande.");
+      }
+
+      const data = await response.json();
+      setParsedRequest(data);
+      setIsNlpSuccess(true);
+      setNlpWarnings(buildNlpWarnings(data));
+
+      if (data.service) {
+        setSelectedService(data.service);
+      }
+
+      if (data.action) {
+        setSelectedAction(data.action);
+      }
+
+      if (data.aws_service_type) {
+        setAwsServiceType(data.aws_service_type);
+      }
+
+      const extractedResourceName = extractResourceName(userRequestText);
+
+      if (extractedResourceName) {
+        setResourceName(extractedResourceName);
+      }
+    } catch (currentError) {
+      setIsNlpSuccess(false);
+      setParseError(
+        currentError instanceof Error
+          ? currentError.message
+          : "Une erreur inconnue est survenue.",
+      );
+    } finally {
+      setIsParsing(false);
+    }
+  }
+
+  async function generateAutomatically() {
+    setIsParsing(true);
+    setParseError(null);
+    setParsedRequest(null);
+    setNlpWarnings([]);
+    setIsNlpSuccess(false);
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/parse-request", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text: userRequestText,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Le backend n'a pas pu analyser la demande.");
+      }
+
+      const data = await response.json();
+      const currentNlpWarnings = buildNlpWarnings(data);
+      const extractedResourceName = extractResourceName(userRequestText);
+
+      setParsedRequest(data);
+      setIsNlpSuccess(true);
+      setNlpWarnings(currentNlpWarnings);
+
+      if (data.service) {
+        setSelectedService(data.service);
+      }
+
+      if (data.action) {
+        setSelectedAction(data.action);
+      }
+
+      if (data.aws_service_type) {
+        setAwsServiceType(data.aws_service_type);
+      }
+
+      if (extractedResourceName) {
+        setResourceName(extractedResourceName);
+      }
+
+      if (currentNlpWarnings.length > 0) {
+        return;
+      }
+
+      await generatePolicyWithPayload({
+        service: data.service,
+        action: data.action,
+        aws_service_type: data.aws_service_type,
+        resource_name: extractedResourceName || resourceName.trim() || null,
+      });
+    } catch (currentError) {
+      setIsNlpSuccess(false);
+      setParseError(
+        currentError instanceof Error
+          ? currentError.message
+          : "Une erreur inconnue est survenue.",
+      );
+    } finally {
+      setIsParsing(false);
+    }
   }
 
   function downloadPolicyJson() {
@@ -209,6 +395,69 @@ export default function Home() {
             Génère un rôle IAM pédagogique avec une trust policy, une permission
             policy et un score de sécurité simple.
           </p>
+        </section>
+
+        <section className="card parser-card">
+          <div className="card-header">
+            <div>
+              <p className="eyebrow">Interpréteur</p>
+              <h2>Analyser une demande naturelle</h2>
+            </div>
+            <span className="muted">Règles simples</span>
+          </div>
+
+          <p className="helper-text">
+            Le moteur tente de comprendre automatiquement le besoin utilisateur.
+            Le moteur reconnaît plusieurs formulations naturelles simples.
+            Le moteur NLP tente d'automatiser la génération IAM à partir d'une
+            phrase naturelle.
+          </p>
+
+          <label className="field">
+            <span>Décris ton besoin AWS</span>
+            <input
+              type="text"
+              value={userRequestText}
+              onChange={(event) => {
+                setUserRequestText(event.target.value);
+                setIsNlpSuccess(false);
+                setNlpWarnings([]);
+              }}
+              placeholder="Je veux qu'une Lambda lise un bucket S3"
+            />
+          </label>
+
+          <div className="parser-actions">
+            <button type="button" onClick={parseUserRequest}>
+              {isParsing ? "Analyse en cours..." : "Analyser la demande"}
+            </button>
+            <button type="button" onClick={generateAutomatically}>
+              Générer automatiquement
+            </button>
+          </div>
+
+          {parseError ? <p className="error">{parseError}</p> : null}
+
+          {isNlpSuccess ? (
+            <p className="success-message">Analyse NLP réussie</p>
+          ) : null}
+
+          {nlpWarnings.length > 0 ? (
+            <ul className="warnings">
+              {nlpWarnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          ) : null}
+
+          {parsedRequest ? (
+            <div className="json-section">
+              <h3>JSON interprété</h3>
+              <pre className="policy-output">
+                {JSON.stringify(parsedRequest, null, 2)}
+              </pre>
+            </div>
+          ) : null}
         </section>
 
         <section className="card generation-card">
