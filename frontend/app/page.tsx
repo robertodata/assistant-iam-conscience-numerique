@@ -37,6 +37,7 @@ type ParsedRequest = {
   aws_service_type: string | null;
   service: string | null;
   action: string | null;
+  resource_name: string | null;
 };
 
 type GeneratePolicyPayload = {
@@ -77,13 +78,21 @@ function getFindingSeverityLabel(severity: SecurityFinding["severity"]) {
 function extractResourceName(text: string) {
   const normalizedText = text
     .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[.,;:!?]/g, " ")
     .replace(/\s+/g, " ");
   const resourceMatch = normalizedText.match(
-    /\b(?:bucket|table)\s+(?:s3\s+|dynamodb\s+)?(?:nommee?\s+|appelee?\s+|le\s+|la\s+|l'|d'|de\s+)?([a-z0-9][a-z0-9._-]*)/,
+    /\b(?:bucket|table)\s+(?:nomme\s+|nommee\s+|appele\s+|appelee\s+)?([a-z0-9][a-z0-9._-]*)/,
   );
 
-  return resourceMatch?.[1] ?? "";
+  const resourceName = resourceMatch?.[1] ?? "";
+
+  if (resourceName === "s3" || resourceName === "dynamodb") {
+    return "";
+  }
+
+  return resourceName;
 }
 
 function buildNlpWarnings(parsedRequest: ParsedRequest) {
@@ -280,7 +289,8 @@ export default function Home() {
         setAwsServiceType(data.aws_service_type);
       }
 
-      const extractedResourceName = extractResourceName(userRequestText);
+      const extractedResourceName =
+        data.resource_name ?? extractResourceName(userRequestText);
 
       if (extractedResourceName) {
         setResourceName(extractedResourceName);
@@ -321,7 +331,8 @@ export default function Home() {
 
       const data = await response.json();
       const currentNlpWarnings = buildNlpWarnings(data);
-      const extractedResourceName = extractResourceName(userRequestText);
+      const extractedResourceName =
+        data.resource_name ?? extractResourceName(userRequestText);
 
       setParsedRequest(data);
       setIsNlpSuccess(true);

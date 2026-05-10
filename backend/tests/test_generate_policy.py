@@ -25,6 +25,7 @@ def test_parse_request_for_lambda_s3_read_sentence():
         "aws_service_type": "lambda",
         "service": "s3",
         "action": "read",
+        "resource_name": None,
     }
 
 
@@ -39,6 +40,7 @@ def test_parse_request_for_ec2_dynamodb_write_sentence():
         "aws_service_type": "ec2",
         "service": "dynamodb",
         "action": "write",
+        "resource_name": None,
     }
 
 
@@ -47,23 +49,48 @@ def test_parse_request_for_ec2_dynamodb_write_sentence():
     [
         (
             "La fonction Lambda doit consulter un bucket S3",
-            {"aws_service_type": "lambda", "service": "s3", "action": "read"},
+            {
+                "aws_service_type": "lambda",
+                "service": "s3",
+                "action": "read",
+                "resource_name": None,
+            },
         ),
         (
             "Je veux un acces lecture pour une fonction Lambda",
-            {"aws_service_type": "lambda", "service": None, "action": "read"},
+            {
+                "aws_service_type": "lambda",
+                "service": None,
+                "action": "read",
+                "resource_name": None,
+            },
         ),
         (
             "Un serveur EC2 doit ajouter des donnees dans DynamoDB",
-            {"aws_service_type": "ec2", "service": "dynamodb", "action": "write"},
+            {
+                "aws_service_type": "ec2",
+                "service": "dynamodb",
+                "action": "write",
+                "resource_name": None,
+            },
         ),
         (
             "Une instance EC2 a besoin d'un acces ecriture sur une table DynamoDB",
-            {"aws_service_type": "ec2", "service": "dynamodb", "action": "write"},
+            {
+                "aws_service_type": "ec2",
+                "service": "dynamodb",
+                "action": "write",
+                "resource_name": None,
+            },
         ),
         (
             "Je veux modifier un bucket S3",
-            {"aws_service_type": None, "service": "s3", "action": "write"},
+            {
+                "aws_service_type": None,
+                "service": "s3",
+                "action": "write",
+                "resource_name": None,
+            },
         ),
     ],
 )
@@ -72,6 +99,36 @@ def test_parse_request_supports_multiple_natural_formulations(text, expected):
 
     assert response.status_code == 200
     assert response.json() == expected
+
+
+def test_parse_request_extracts_bucket_resource_name():
+    response = client.post(
+        "/parse-request",
+        json={"text": "Je veux qu'une Lambda lise le bucket mon-bucket"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["resource_name"] == "mon-bucket"
+
+
+def test_parse_request_extracts_named_table_resource_name():
+    response = client.post(
+        "/parse-request",
+        json={"text": "EC2 doit ecrire dans la table nommee ma-table"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["resource_name"] == "ma-table"
+
+
+def test_parse_request_without_resource_name_returns_null():
+    response = client.post(
+        "/parse-request",
+        json={"text": "Je veux une Lambda avec acces lecture"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["resource_name"] is None
 
 
 def test_generate_policy_for_s3_read_lambda_bucket():

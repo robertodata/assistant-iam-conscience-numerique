@@ -1,3 +1,4 @@
+import re
 import unicodedata
 
 
@@ -22,6 +23,24 @@ def find_keyword(text: str, keywords: dict[str, list[str]]) -> str | None:
             return value
 
     return None
+
+
+def extract_resource_name(text: str) -> str | None:
+    # On detecte uniquement des formulations simples et pedagogiques.
+    resource_match = re.search(
+        r"\b(?:bucket|table)\s+(?:nomme\s+|nommee\s+|appele\s+|appelee\s+)?([a-z0-9][a-z0-9._-]*)",
+        text,
+    )
+
+    if not resource_match:
+        return None
+
+    resource_name = resource_match.group(1)
+
+    if resource_name in ["s3", "dynamodb"]:
+        return None
+
+    return resource_name
 
 
 def parse_user_request(text: str) -> dict[str, str | None]:
@@ -56,9 +75,11 @@ def parse_user_request(text: str) -> dict[str, str | None]:
             ],
         },
     )
+    resource_name = extract_resource_name(normalized_text)
 
     return {
         "aws_service_type": aws_service_type,
         "service": service,
         "action": action,
+        "resource_name": resource_name,
     }
