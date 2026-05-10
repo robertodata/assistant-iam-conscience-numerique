@@ -11,6 +11,7 @@ from .iam_engine import (
     build_trust_policy,
     get_actions_for_request,
 )
+from .iam_validator import validate_iam_policy
 from .nlp_parser import parse_user_request
 from .security_analyzer import (
     analyze_security_findings,
@@ -67,6 +68,7 @@ def generate_policy(request: PolicyRequest) -> dict:
     trust_policy = build_trust_policy(aws_service_type)
     policy = build_permission_policy(actions, resource)
     explanations = build_explanations(actions)
+    validation_findings = validate_iam_policy(actions, resource)
     security_findings = analyze_security_findings(resource, actions)
     security_score = calculate_security_score(security_findings)
     security_level = get_security_level(security_score)
@@ -90,6 +92,7 @@ def generate_policy(request: PolicyRequest) -> dict:
         "terraform_template": terraform_template,
         "warnings": warnings,
         "explanations": explanations,
+        "validation_findings": validation_findings,
         "security_findings": security_findings,
         "security_score": security_score,
         "security_level": security_level,

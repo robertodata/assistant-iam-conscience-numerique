@@ -33,6 +33,13 @@ type SecurityFinding = {
   description: string;
 };
 
+type ValidationFinding = {
+  severity: "low" | "medium" | "high";
+  permission: string;
+  message: string;
+  recommendation: string;
+};
+
 type ParsedRequest = {
   aws_service_type: string | null;
   service: string | null;
@@ -45,6 +52,11 @@ type GeneratePolicyPayload = {
   action: string;
   aws_service_type: string;
   resource_name: string | null;
+};
+
+type GenerationHistoryEntry = GeneratePolicyPayload & {
+  id: string;
+  generatedAt: string;
 };
 
 function getSecurityBadgeClass(level: string) {
@@ -73,6 +85,18 @@ function getFindingSeverityLabel(severity: SecurityFinding["severity"]) {
   }
 
   return "Low";
+}
+
+function getRiskLabel(severity: ValidationFinding["severity"]) {
+  if (severity === "high") {
+    return "Risque élevé";
+  }
+
+  if (severity === "medium") {
+    return "Risque moyen";
+  }
+
+  return "Risque faible";
 }
 
 function extractResourceName(text: string) {
@@ -132,6 +156,9 @@ export default function Home() {
   const [securityFindings, setSecurityFindings] = useState<SecurityFinding[]>(
     [],
   );
+  const [validationFindings, setValidationFindings] = useState<
+    ValidationFinding[]
+  >([]);
   const [securityResult, setSecurityResult] = useState<SecurityResult | null>(
     null,
   );
@@ -155,6 +182,9 @@ export default function Home() {
   );
   const [error, setError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationHistory, setGenerationHistory] = useState<
+    GenerationHistoryEntry[]
+  >([]);
 
   async function generatePolicyWithPayload(payload: GeneratePolicyPayload) {
     setIsGenerating(true);
@@ -190,11 +220,20 @@ export default function Home() {
       setTerraformTemplate(data.terraform_template);
       setWarnings(data.warnings ?? []);
       setExplanations(data.explanations ?? []);
+      setValidationFindings(data.validation_findings ?? []);
       setSecurityFindings(data.security_findings ?? []);
       setSecurityResult({
         score: data.security_score,
         level: data.security_level,
       });
+      setGenerationHistory((currentHistory) => [
+        {
+          ...payload,
+          id: `${Date.now()}-${currentHistory.length}`,
+          generatedAt: new Date().toLocaleTimeString(),
+        },
+        ...currentHistory,
+      ].slice(0, 5));
     } catch (currentError) {
       setRoleName(null);
       setTrustPolicy(null);
@@ -203,6 +242,7 @@ export default function Home() {
       setTerraformTemplate(null);
       setWarnings([]);
       setExplanations([]);
+      setValidationFindings([]);
       setSecurityFindings([]);
       setSecurityResult(null);
       setError(
@@ -389,6 +429,17 @@ export default function Home() {
     }
 
     setNlpApplyMessage("Analyse appliquée au formulaire.");
+  }
+
+  function reuseHistoryEntry(entry: GenerationHistoryEntry) {
+    setSelectedService(entry.service);
+    setSelectedAction(entry.action);
+    setAwsServiceType(entry.aws_service_type);
+    setResourceName(entry.resource_name ?? "");
+  }
+
+  function clearHistory() {
+    setGenerationHistory([]);
   }
 
   function downloadPolicyJson() {
@@ -627,6 +678,48 @@ export default function Home() {
           {error ? <p className="error">{error}</p> : null}
         </section>
 
+        <section className="card history-card">
+          <div className="card-header">
+            <div>
+              <p className="eyebrow">Mémoire locale</p>
+              <h2>Historique récent</h2>
+            </div>
+            {generationHistory.length > 0 ? (
+              <button type="button" onClick={clearHistory}>
+                Vider l'historique
+              </button>
+            ) : null}
+          </div>
+
+          <p>
+            L'historique permet de rejouer rapidement des générations IAM
+            précédentes.
+          </p>
+
+          {generationHistory.length > 0 ? (
+            <div className="history-list">
+              {generationHistory.map((entry) => (
+                <article className="history-item" key={entry.id}>
+                  <div>
+                    <span className="history-time">{entry.generatedAt}</span>
+                    <strong>
+                      {entry.aws_service_type} / {entry.service} / {entry.action}
+                    </strong>
+                    <span className="history-resource">
+                      Ressource : {entry.resource_name ?? "Non renseignée"}
+                    </span>
+                  </div>
+                  <button type="button" onClick={() => reuseHistoryEntry(entry)}>
+                    Réutiliser
+                  </button>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="empty-history">Aucune génération récente.</p>
+          )}
+        </section>
+
         {policyResult ? (
           <>
             <section className="card result-card">
@@ -718,6 +811,34 @@ export default function Home() {
                 <pre className="policy-output">{terraformTemplate}</pre>
               </section>
             ) : null}
+
+            <section className="card iam-validation-card">
+              <h2>Validation IAM</h2>
+              <p>
+                Certaines permissions IAM peuvent représenter un risque
+                important.
+              </p>
+              {validationFindings.length > 0 ? (
+                <div className="validation-grid">
+                  {validationFindings.map((finding) => (
+                    <article
+                      className={`validation-item validation-${finding.severity}`}
+                      key={`${finding.severity}-${finding.permission}`}
+                    >
+                      <span>{getRiskLabel(finding.severity)}</span>
+                      <strong>{finding.permission}</strong>
+                      <p>{finding.message}</p>
+                      <small>{finding.recommendation}</small>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <p className="empty-state">
+                  Aucune permission critique détectée par les règles de
+                  validation actuelles.
+                </p>
+              )}
+            </section>
 
             {securityResult ? (
               <section className="card security-score">

@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 import pytest
 
+from app.iam_validator import validate_iam_policy
 from app.main import app
 
 
@@ -166,6 +167,14 @@ def test_generate_policy_without_resource_name_returns_warning():
     assert response.status_code == 200
     assert data["policy"]["Statement"][0]["Resource"] == "*"
     assert "Attention : Resource '*' donne un acces trop large." in data["warnings"]
+    assert data["validation_findings"] == [
+        {
+            "severity": "medium",
+            "permission": "Resource *",
+            "message": "Resource '*' applique les permissions a toutes les ressources compatibles.",
+            "recommendation": "Preciser un ARN de ressource pour mieux respecter le Least Privilege.",
+        }
+    ]
 
 
 def test_generate_policy_for_dynamodb_write_ec2_table():
@@ -226,3 +235,51 @@ def test_generate_policy_returns_terraform_template():
     assert "assume_role_policy" in data["terraform_template"]
     assert 'resource "aws_iam_role_policy" "generated_policy"' in data["terraform_template"]
     assert "policy = <<POLICY" in data["terraform_template"]
+
+
+def test_generate_policy_returns_validation_findings_key():
+    response = client.post(
+        "/generate-policy",
+        json={
+            "service": "s3",
+            "action": "read",
+            "aws_service_type": "lambda",
+            "resource_name": "mon-bucket",
+        },
+    )
+
+    data = response.json()
+
+    assert response.status_code == 200
+    assert data["validation_findings"] == []
+
+
+@pytest.mark.parametrize(
+    ("permission", "expected_message"),
+    [
+        ("s3:DeleteBucket", "Cette permission permet de supprimer un bucket S3."),
+        ("iam:PassRole", "Cette permission permet de transmettre un role IAM a un service AWS."),
+        ("iam:CreateUser", "Cette permission permet de creer de nouveaux utilisateurs IAM."),
+        ("iam:AttachRolePolicy", "Cette permission permet d'attacher des policies a un role IAM."),
+    ],
+)
+def test_validate_iam_policy_detects_sensitive_permissions(permission, expected_message):
+    findings = validate_iam_policy([permission], "arn:aws:example:::resource")
+
+    assert findings[0]["severity"] == "high"
+    assert findings[0]["permission"] == permission
+    assert findings[0]["message"] == expected_message
+    assert findings[0]["recommendation"]
+
+
+def test_validate_iam_policy_detects_wildcard_action():
+    findings = validate_iam_policy(["*"], "arn:aws:example:::resource")
+
+    assert findings == [
+        {
+            "severity": "high",
+            "permission": "*",
+            "message": "Wildcard action '*' donne tous les droits possibles.",
+            "recommendation": "Remplacer '*' par une liste precise d'actions necessaires.",
+        }
+    ]
