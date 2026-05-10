@@ -170,6 +170,70 @@ button:hover {
   background: #151f31;
 }
 
+.request-analysis-card {
+  display: grid;
+  gap: 16px;
+}
+
+.request-analysis-card p {
+  margin: 0;
+  color: #4b5870;
+}
+
+.detected-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.detected-item {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #d8deea;
+  border-radius: 8px;
+  padding: 14px;
+  background: #f8fafc;
+}
+
+.detected-item span {
+  color: #66738a;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.detected-badge,
+.missing-badge {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.9rem;
+}
+
+.detected-badge {
+  background: #e8f7ed;
+  color: #166534;
+}
+
+.missing-badge {
+  background: #f1f4f9;
+  color: #66738a;
+}
+
+.analysis-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.analysis-actions button {
+  background: #25324a;
+}
+
+.analysis-actions button:hover {
+  background: #151f31;
+}
+
 .generate-button {
   width: 100%;
   margin-top: 20px;
@@ -469,6 +533,10 @@ button:hover {
     grid-template-columns: 1fr;
   }
 
+  .detected-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .template-card .card-header button {
     width: fit-content;
   }
@@ -492,6 +560,14 @@ button:hover {
   }
 
   .template-card .card-header button {
+    width: 100%;
+  }
+
+  .detected-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .analysis-actions button {
     width: 100%;
   }
 }

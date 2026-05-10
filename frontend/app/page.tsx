@@ -113,6 +113,10 @@ function buildNlpWarnings(parsedRequest: ParsedRequest) {
   return warnings;
 }
 
+function formatDetectedValue(value: string | null) {
+  return value ?? "Non détecté";
+}
+
 export default function Home() {
   const [roleName, setRoleName] = useState<string | null>(null);
   const [trustPolicy, setTrustPolicy] = useState<object | null>(null);
@@ -145,6 +149,7 @@ export default function Home() {
   const [isParsing, setIsParsing] = useState(false);
   const [nlpWarnings, setNlpWarnings] = useState<string[]>([]);
   const [isNlpSuccess, setIsNlpSuccess] = useState(false);
+  const [nlpApplyMessage, setNlpApplyMessage] = useState<string | null>(null);
   const [policyActionMessage, setPolicyActionMessage] = useState<string | null>(
     null,
   );
@@ -256,6 +261,7 @@ export default function Home() {
     setParsedRequest(null);
     setNlpWarnings([]);
     setIsNlpSuccess(false);
+    setNlpApplyMessage(null);
 
     try {
       const response = await fetch("http://127.0.0.1:8000/parse-request", {
@@ -276,25 +282,6 @@ export default function Home() {
       setParsedRequest(data);
       setIsNlpSuccess(true);
       setNlpWarnings(buildNlpWarnings(data));
-
-      if (data.service) {
-        setSelectedService(data.service);
-      }
-
-      if (data.action) {
-        setSelectedAction(data.action);
-      }
-
-      if (data.aws_service_type) {
-        setAwsServiceType(data.aws_service_type);
-      }
-
-      const extractedResourceName =
-        data.resource_name ?? extractResourceName(userRequestText);
-
-      if (extractedResourceName) {
-        setResourceName(extractedResourceName);
-      }
     } catch (currentError) {
       setIsNlpSuccess(false);
       setParseError(
@@ -313,6 +300,7 @@ export default function Home() {
     setParsedRequest(null);
     setNlpWarnings([]);
     setIsNlpSuccess(false);
+    setNlpApplyMessage(null);
 
     try {
       const response = await fetch("http://127.0.0.1:8000/parse-request", {
@@ -376,6 +364,33 @@ export default function Home() {
     }
   }
 
+  function applyParsedRequestToForm() {
+    if (!parsedRequest) {
+      return;
+    }
+
+    if (parsedRequest.service) {
+      setSelectedService(parsedRequest.service);
+    }
+
+    if (parsedRequest.action) {
+      setSelectedAction(parsedRequest.action);
+    }
+
+    if (parsedRequest.aws_service_type) {
+      setAwsServiceType(parsedRequest.aws_service_type);
+    }
+
+    const extractedResourceName =
+      parsedRequest.resource_name ?? extractResourceName(userRequestText);
+
+    if (extractedResourceName) {
+      setResourceName(extractedResourceName);
+    }
+
+    setNlpApplyMessage("Analyse appliquée au formulaire.");
+  }
+
   function downloadPolicyJson() {
     if (!policyResult) {
       return;
@@ -433,6 +448,7 @@ export default function Home() {
                 setUserRequestText(event.target.value);
                 setIsNlpSuccess(false);
                 setNlpWarnings([]);
+                setNlpApplyMessage(null);
               }}
               placeholder="Je veux qu'une Lambda lise un bucket S3"
             />
@@ -470,6 +486,68 @@ export default function Home() {
             </div>
           ) : null}
         </section>
+
+        {parsedRequest ? (
+          <section className="card request-analysis-card">
+            <div className="card-header">
+              <div>
+                <p className="eyebrow">Analyse NLP</p>
+                <h2>Analyse de la demande</h2>
+              </div>
+              <span className="muted">Avant génération</span>
+            </div>
+
+            <p>
+              L'assistant analyse la phrase utilisateur avant de générer les
+              permissions IAM.
+              Vous pouvez vérifier l'analyse avant de générer le rôle IAM.
+            </p>
+
+            <div className="detected-grid">
+              <article className="detected-item">
+                <span>Service détecté</span>
+                <strong className={parsedRequest.service ? "detected-badge" : "missing-badge"}>
+                  {formatDetectedValue(parsedRequest.service)}
+                </strong>
+              </article>
+              <article className="detected-item">
+                <span>Action détectée</span>
+                <strong className={parsedRequest.action ? "detected-badge" : "missing-badge"}>
+                  {formatDetectedValue(parsedRequest.action)}
+                </strong>
+              </article>
+              <article className="detected-item">
+                <span>Type AWS détecté</span>
+                <strong
+                  className={
+                    parsedRequest.aws_service_type ? "detected-badge" : "missing-badge"
+                  }
+                >
+                  {formatDetectedValue(parsedRequest.aws_service_type)}
+                </strong>
+              </article>
+              <article className="detected-item">
+                <span>Ressource détectée</span>
+                <strong
+                  className={parsedRequest.resource_name ? "detected-badge" : "missing-badge"}
+                >
+                  {formatDetectedValue(parsedRequest.resource_name)}
+                </strong>
+              </article>
+            </div>
+
+            {isNlpSuccess ? (
+              <div className="analysis-actions">
+                <button type="button" onClick={applyParsedRequestToForm}>
+                  Utiliser cette analyse
+                </button>
+                {nlpApplyMessage ? (
+                  <p className="success-message">{nlpApplyMessage}</p>
+                ) : null}
+              </div>
+            ) : null}
+          </section>
+        ) : null}
 
         <section className="card generation-card">
           <div className="card-header">
