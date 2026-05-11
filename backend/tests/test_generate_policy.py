@@ -127,6 +127,13 @@ def test_parse_request_extracts_bucket_resource_name():
 
     assert response.status_code == 200
     assert response.json()["resource_name"] == "mon-bucket"
+    assert response.json()["permissions"] == [
+        {
+            "service": "s3",
+            "action": "read",
+            "resource_name": "mon-bucket",
+        }
+    ]
 
 
 def test_parse_request_extracts_named_table_resource_name():
@@ -137,6 +144,13 @@ def test_parse_request_extracts_named_table_resource_name():
 
     assert response.status_code == 200
     assert response.json()["resource_name"] == "ma-table"
+    assert response.json()["permissions"] == [
+        {
+            "service": "dynamodb",
+            "action": "write",
+            "resource_name": "ma-table",
+        }
+    ]
 
 
 def test_parse_request_without_resource_name_returns_null():
@@ -157,6 +171,51 @@ def test_parse_request_detects_multiple_permissions():
 
     assert response.status_code == 200
     assert response.json()["aws_service_type"] == "lambda"
+    assert response.json()["permissions"] == [
+        {
+            "service": "s3",
+            "action": "read",
+        },
+        {
+            "service": "dynamodb",
+            "action": "write",
+        },
+    ]
+
+
+def test_parse_request_detects_resources_for_each_permission():
+    response = client.post(
+        "/parse-request",
+        json={
+            "text": "Une Lambda lit le bucket mon-bucket et ecrit dans la table ma-table"
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["aws_service_type"] == "lambda"
+    assert response.json()["resource_name"] == "mon-bucket"
+    assert response.json()["permissions"] == [
+        {
+            "service": "s3",
+            "action": "read",
+            "resource_name": "mon-bucket",
+        },
+        {
+            "service": "dynamodb",
+            "action": "write",
+            "resource_name": "ma-table",
+        },
+    ]
+
+
+def test_parse_request_multiple_permissions_without_resources():
+    response = client.post(
+        "/parse-request",
+        json={"text": "Une Lambda lit S3 et ecrit dans DynamoDB"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["resource_name"] is None
     assert response.json()["permissions"] == [
         {
             "service": "s3",
@@ -220,6 +279,63 @@ def test_generate_policy_supports_multiple_permissions():
     assert data["policy"]["Statement"][1]["Action"] == ["dynamodb:PutItem"]
     assert "dynamodb:PutItem" in [
         explanation["permission"] for explanation in data["explanations"]
+    ]
+
+
+def test_generate_policy_uses_resource_name_per_permission():
+    response = client.post(
+        "/generate-policy",
+        json={
+            "aws_service_type": "lambda",
+            "permissions": [
+                {
+                    "service": "s3",
+                    "action": "read",
+                    "resource_name": "mon-bucket",
+                },
+                {
+                    "service": "dynamodb",
+                    "action": "write",
+                    "resource_name": "ma-table",
+                },
+            ],
+        },
+    )
+
+    data = response.json()
+
+    assert response.status_code == 200
+    assert data["policy"]["Statement"][0]["Resource"] == [
+        "arn:aws:s3:::mon-bucket",
+        "arn:aws:s3:::mon-bucket/*",
+    ]
+    assert data["policy"]["Statement"][1]["Resource"] == (
+        "arn:aws:dynamodb:eu-west-3:123456789012:table/ma-table"
+    )
+    assert data["warnings"] == []
+
+
+def test_generate_policy_keeps_global_resource_name_compatibility():
+    response = client.post(
+        "/generate-policy",
+        json={
+            "aws_service_type": "lambda",
+            "permissions": [
+                {
+                    "service": "s3",
+                    "action": "read",
+                }
+            ],
+            "resource_name": "mon-bucket",
+        },
+    )
+
+    data = response.json()
+
+    assert response.status_code == 200
+    assert data["policy"]["Statement"][0]["Resource"] == [
+        "arn:aws:s3:::mon-bucket",
+        "arn:aws:s3:::mon-bucket/*",
     ]
 
 

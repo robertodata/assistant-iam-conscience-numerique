@@ -48,6 +48,7 @@ type ValidationFinding = {
 type DetectedPermission = {
   service: string;
   action: string;
+  resource_name?: string;
 };
 
 type ParsedRequest = {
@@ -466,24 +467,84 @@ export default function Home() {
     setGenerationHistory([]);
   }
 
+  function downloadGeneratedFile(
+    content: string,
+    fileName: string,
+    mimeType: string,
+  ) {
+    // Un Blob represente ici un petit fichier cree dans le navigateur.
+    // URL.createObjectURL() cree une URL temporaire vers ce fichier.
+    // Le lien <a> permet de declencher simplement le telechargement.
+    const generatedBlob = new Blob([content], {
+      type: mimeType,
+    });
+    const generatedUrl = URL.createObjectURL(generatedBlob);
+    const downloadLink = document.createElement("a");
+    downloadLink.href = generatedUrl;
+    downloadLink.download = fileName;
+    downloadLink.click();
+    URL.revokeObjectURL(generatedUrl);
+    setPolicyActionMessage("Téléchargement lancé.");
+  }
+
   function downloadPolicyJson() {
     if (!policyResult) {
       return;
     }
 
-    // Un Blob represente ici un petit fichier cree dans le navigateur.
-    // URL.createObjectURL() cree une URL temporaire vers ce fichier.
-    // Le lien <a> permet de declencher simplement le telechargement.
-    const policyBlob = new Blob([JSON.stringify(policyResult, null, 2)], {
-      type: "application/json",
-    });
-    const policyUrl = URL.createObjectURL(policyBlob);
-    const downloadLink = document.createElement("a");
-    downloadLink.href = policyUrl;
-    downloadLink.download = "policy-iam.json";
-    downloadLink.click();
-    URL.revokeObjectURL(policyUrl);
-    setPolicyActionMessage("Téléchargement lancé.");
+    downloadGeneratedFile(
+      JSON.stringify(policyResult, null, 2),
+      "policy-iam.json",
+      "application/json",
+    );
+  }
+
+  function downloadPermissionPolicyJson() {
+    if (!policyResult) {
+      return;
+    }
+
+    downloadGeneratedFile(
+      JSON.stringify(policyResult, null, 2),
+      "permission-policy.json",
+      "application/json",
+    );
+  }
+
+  function downloadTrustPolicyJson() {
+    if (!trustPolicy) {
+      return;
+    }
+
+    downloadGeneratedFile(
+      JSON.stringify(trustPolicy, null, 2),
+      "trust-policy.json",
+      "application/json",
+    );
+  }
+
+  function downloadCloudFormationYaml() {
+    if (!cloudFormationTemplate) {
+      return;
+    }
+
+    downloadGeneratedFile(
+      cloudFormationTemplate,
+      "cloudformation-template.yaml",
+      "application/x-yaml",
+    );
+  }
+
+  function downloadTerraformTf() {
+    if (!terraformTemplate) {
+      return;
+    }
+
+    downloadGeneratedFile(
+      terraformTemplate,
+      "terraform-template.tf",
+      "text/plain",
+    );
   }
 
   return (
@@ -619,10 +680,13 @@ export default function Home() {
                   {parsedRequest.permissions.map((permission) => (
                     <span
                       className="permission-chip"
-                      key={`${permission.service}-${permission.action}`}
+                      key={`${permission.service}-${permission.action}-${permission.resource_name ?? "no-resource"}`}
                     >
                       <strong>{permission.service}</strong>
                       <em>{permission.action}</em>
+                      {permission.resource_name ? (
+                        <span>{permission.resource_name}</span>
+                      ) : null}
                     </span>
                   ))}
                 </div>
@@ -800,6 +864,12 @@ export default function Home() {
                   <button type="button" onClick={downloadPolicyJson}>
                     Télécharger la policy JSON
                   </button>
+                  <button type="button" onClick={downloadPermissionPolicyJson}>
+                    Télécharger Permission Policy
+                  </button>
+                  <button type="button" onClick={downloadTrustPolicyJson}>
+                    Télécharger Trust Policy
+                  </button>
                 </div>
               </div>
 
@@ -837,6 +907,11 @@ export default function Home() {
                   ))}
                 </ul>
               ) : null}
+
+              <p className="helper-text">
+                Chaque export correspond à un usage différent : IAM direct,
+                CloudFormation ou Terraform.
+              </p>
             </section>
 
             {cloudFormationTemplate ? (
@@ -846,9 +921,14 @@ export default function Home() {
                     <p className="eyebrow">Infrastructure as code</p>
                     <h2>Template CloudFormation</h2>
                   </div>
-                  <button type="button" onClick={copyCloudFormationTemplate}>
-                    Copier CloudFormation
-                  </button>
+                  <div className="policy-actions">
+                    <button type="button" onClick={copyCloudFormationTemplate}>
+                      Copier CloudFormation
+                    </button>
+                    <button type="button" onClick={downloadCloudFormationYaml}>
+                      Télécharger CloudFormation YAML
+                    </button>
+                  </div>
                 </div>
                 <p>
                   CloudFormation permet de créer des ressources AWS à partir
@@ -865,9 +945,14 @@ export default function Home() {
                     <p className="eyebrow">Infrastructure as code</p>
                     <h2>Template Terraform</h2>
                   </div>
-                  <button type="button" onClick={copyTerraformTemplate}>
-                    Copier Terraform
-                  </button>
+                  <div className="policy-actions">
+                    <button type="button" onClick={copyTerraformTemplate}>
+                      Copier Terraform
+                    </button>
+                    <button type="button" onClick={downloadTerraformTf}>
+                      Télécharger Terraform TF
+                    </button>
+                  </div>
                 </div>
                 <p>
                   Terraform permet de gérer l'infrastructure cloud sous forme

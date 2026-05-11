@@ -27,7 +27,7 @@ def find_keyword(text: str, keywords: dict[str, list[str]]) -> str | None:
 
 service_keywords = {
     "s3": ["s3", "bucket"],
-    "dynamodb": ["dynamodb", "dynamo db", "table dynamodb"],
+    "dynamodb": ["dynamodb", "dynamo db", "table dynamodb", "table"],
 }
 
 
@@ -72,9 +72,17 @@ def detect_permissions(text: str) -> list[dict[str, str]]:
     for part in text_parts:
         service = find_keyword(part, service_keywords)
         action = find_keyword(part, action_keywords)
+        resource_name = extract_resource_name(part)
 
         if service and action:
-            permissions.append({"service": service, "action": action})
+            permission = {"service": service, "action": action}
+
+            # Quand une ressource est proche d'une permission, on l'attache a
+            # cette permission precise : bucket => s3, table => dynamodb.
+            if resource_name:
+                permission["resource_name"] = resource_name
+
+            permissions.append(permission)
 
     if permissions:
         return permissions
@@ -83,7 +91,13 @@ def detect_permissions(text: str) -> list[dict[str, str]]:
     action = find_keyword(text, action_keywords)
 
     if service and action:
-        return [{"service": service, "action": action}]
+        permission = {"service": service, "action": action}
+        resource_name = extract_resource_name(text)
+
+        if resource_name:
+            permission["resource_name"] = resource_name
+
+        return [permission]
 
     return []
 

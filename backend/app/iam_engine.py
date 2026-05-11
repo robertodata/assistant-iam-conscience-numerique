@@ -55,13 +55,15 @@ def build_permission_items(
     for permission in permissions:
         service = permission["service"]
         action = permission["action"]
+        permission_resource_name = permission.get("resource_name") or resource_name
         actions = get_actions_for_request(service, action)
-        resource, resource_warnings = build_resource(service, resource_name)
+        resource, resource_warnings = build_resource(service, permission_resource_name)
 
         permission_items.append(
             {
                 "service": service,
                 "action": action,
+                "resource_name": permission_resource_name,
                 "actions": actions,
                 "resource": resource,
             }
