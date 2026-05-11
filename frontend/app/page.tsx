@@ -45,6 +45,15 @@ type ValidationFinding = {
   recommendation: string;
 };
 
+type PolicyStatement = {
+  Action: string[];
+  Resource: string | string[];
+};
+
+type IamPolicy = {
+  Statement: PolicyStatement[];
+};
+
 type DetectedPermission = {
   service: string;
   action: string;
@@ -159,10 +168,26 @@ function formatUserMode(mode: string) {
   return mode === "expert" ? "Expert" : "Débutant";
 }
 
+function formatAwsServiceType(serviceType: string | undefined) {
+  if (serviceType === "ec2") {
+    return "EC2";
+  }
+
+  return "Lambda";
+}
+
+function formatResourceValue(resource: string | string[]) {
+  if (Array.isArray(resource)) {
+    return resource.join(", ");
+  }
+
+  return resource;
+}
+
 export default function Home() {
   const [roleName, setRoleName] = useState<string | null>(null);
   const [trustPolicy, setTrustPolicy] = useState<object | null>(null);
-  const [policyResult, setPolicyResult] = useState<object | null>(null);
+  const [policyResult, setPolicyResult] = useState<IamPolicy | null>(null);
   const [cloudFormationTemplate, setCloudFormationTemplate] = useState<
     string | null
   >(null);
@@ -204,6 +229,8 @@ export default function Home() {
   const [generationHistory, setGenerationHistory] = useState<
     GenerationHistoryEntry[]
   >([]);
+  const [lastGeneratedPayload, setLastGeneratedPayload] =
+    useState<GeneratePolicyPayload | null>(null);
 
   async function generatePolicyWithPayload(payload: GeneratePolicyPayload) {
     setIsGenerating(true);
@@ -247,6 +274,7 @@ export default function Home() {
         score: data.security_score,
         level: data.security_level,
       });
+      setLastGeneratedPayload(payload);
       setGenerationHistory((currentHistory) => [
         {
           ...payload,
@@ -266,6 +294,7 @@ export default function Home() {
       setValidationFindings([]);
       setSecurityFindings([]);
       setSecurityResult(null);
+      setLastGeneratedPayload(null);
       setError(
         currentError instanceof Error
           ? currentError.message
@@ -546,6 +575,18 @@ export default function Home() {
       "text/plain",
     );
   }
+
+  const policyStatements = policyResult?.Statement ?? [];
+  const permissionCount = policyStatements.reduce(
+    (total, statement) => total + statement.Action.length,
+    0,
+  );
+  const exportNames = [
+    policyResult ? "JSON" : null,
+    trustPolicy ? "Trust Policy JSON" : null,
+    cloudFormationTemplate ? "CloudFormation" : null,
+    terraformTemplate ? "Terraform" : null,
+  ].filter(Boolean);
 
   return (
     <main className="page">
@@ -851,6 +892,84 @@ export default function Home() {
 
         {policyResult ? (
           <>
+            <section className="card final-preview-card">
+              <div className="card-header">
+                <div>
+                  <p className="eyebrow">Résumé</p>
+                  <h2>Aperçu final</h2>
+                </div>
+                <div className="final-preview-badges">
+                  <span className="preview-badge preview-badge-type">
+                    {formatAwsServiceType(lastGeneratedPayload?.aws_service_type)}
+                  </span>
+                  <span className="preview-badge preview-badge-count">
+                    {permissionCount} permission{permissionCount > 1 ? "s" : ""}
+                  </span>
+                  {securityResult ? (
+                    <span className={getSecurityBadgeClass(securityResult.level)}>
+                      {formatSecurityLevel(securityResult.level)}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+
+              <p className="helper-text">
+                Cet aperçu permet de vérifier rapidement la configuration IAM
+                avant utilisation.
+              </p>
+
+              <div className="final-preview-grid">
+                <article>
+                  <span>Nom du rôle IAM</span>
+                  <strong>{roleName ?? "Non disponible"}</strong>
+                </article>
+                <article>
+                  <span>Type AWS détecté</span>
+                  <strong>
+                    {formatAwsServiceType(lastGeneratedPayload?.aws_service_type)}
+                  </strong>
+                </article>
+                <article>
+                  <span>Score sécurité</span>
+                  <strong>
+                    {securityResult ? `${securityResult.score}/100` : "Non disponible"}
+                  </strong>
+                </article>
+                <article>
+                  <span>Niveau de sécurité</span>
+                  <strong>
+                    {securityResult
+                      ? formatSecurityLevel(securityResult.level)
+                      : "Non disponible"}
+                  </strong>
+                </article>
+                <article>
+                  <span>Nombre de findings sécurité</span>
+                  <strong>{securityFindings.length}</strong>
+                </article>
+                <article>
+                  <span>Exports disponibles</span>
+                  <strong>{exportNames.join(", ")}</strong>
+                </article>
+              </div>
+
+              <div className="final-permissions">
+                <h3>Liste des permissions détectées</h3>
+                <div className="final-permission-list">
+                  {policyStatements.map((statement, index) => (
+                    <article
+                      className="final-permission-item"
+                      key={`${statement.Action.join("-")}-${index}`}
+                    >
+                      <strong>{statement.Action.join(", ")}</strong>
+                      <small>Ressources associées</small>
+                      <span>{formatResourceValue(statement.Resource)}</span>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            </section>
+
             <section className="card result-card">
               <div className="card-header">
                 <div>
@@ -961,6 +1080,48 @@ export default function Home() {
                 <pre className="policy-output">{terraformTemplate}</pre>
               </section>
             ) : null}
+
+            <section className="card export-help-card">
+              <div className="card-header">
+                <div>
+                  <p className="eyebrow">Aide</p>
+                  <h2>Quel fichier utiliser ?</h2>
+                </div>
+                <span className="muted">Exports</span>
+              </div>
+
+              <div className="export-help-grid">
+                <article>
+                  <strong>Permission Policy JSON</strong>
+                  <p>
+                    À coller dans IAM comme policy de permissions.
+                  </p>
+                </article>
+                <article>
+                  <strong>Trust Policy JSON</strong>
+                  <p>
+                    Définit quel service AWS peut utiliser le rôle.
+                  </p>
+                </article>
+                <article>
+                  <strong>CloudFormation YAML</strong>
+                  <p>
+                    Pour créer le rôle via AWS CloudFormation.
+                  </p>
+                </article>
+                <article>
+                  <strong>Terraform TF</strong>
+                  <p>
+                    Pour créer le rôle via Terraform.
+                  </p>
+                </article>
+              </div>
+
+              <p className="helper-text">
+                Ces exports ne déploient rien automatiquement : ils servent de
+                base à vérifier puis importer dans AWS.
+              </p>
+            </section>
 
             <section className="card iam-validation-card">
               <h2>Validation IAM</h2>

@@ -372,6 +372,96 @@ button:hover {
   gap: 16px;
 }
 
+.final-preview-card {
+  display: grid;
+  gap: 16px;
+}
+
+.final-preview-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.preview-badge {
+  border-radius: 999px;
+  padding: 7px 11px;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.preview-badge-type {
+  background: #eef3ff;
+  color: #3158d4;
+}
+
+.preview-badge-count {
+  background: #ecfdf3;
+  color: #167044;
+}
+
+.final-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.final-preview-grid article {
+  display: grid;
+  gap: 6px;
+  border: 1px solid #d8deea;
+  border-radius: 8px;
+  padding: 14px;
+  background: #f8fafc;
+}
+
+.final-preview-grid span,
+.final-permission-item span {
+  color: #66738a;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.final-preview-grid strong {
+  color: #172033;
+  overflow-wrap: anywhere;
+}
+
+.final-permissions {
+  display: grid;
+  gap: 12px;
+}
+
+.final-permissions h3 {
+  margin: 0;
+  color: #263247;
+  font-size: 1rem;
+}
+
+.final-permission-list {
+  display: grid;
+  gap: 10px;
+}
+
+.final-permission-item {
+  display: grid;
+  gap: 6px;
+  border: 1px solid #d8deea;
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.final-permission-item strong {
+  color: #172033;
+  overflow-wrap: anywhere;
+}
+
+.final-permission-item small {
+  color: #4b5870;
+  font-weight: 800;
+}
+
 .policy-actions {
   display: flex;
   flex-wrap: wrap;
@@ -564,6 +654,35 @@ button:hover {
   background: #151f31;
 }
 
+.export-help-card {
+  display: grid;
+  gap: 16px;
+}
+
+.export-help-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.export-help-grid article {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #d8deea;
+  border-radius: 8px;
+  padding: 14px;
+  background: #f8fafc;
+}
+
+.export-help-grid strong {
+  color: #172033;
+}
+
+.export-help-grid p {
+  margin: 0;
+  color: #4b5870;
+}
+
 .security-findings p {
   margin: 0;
   color: #4b5870;
@@ -722,12 +841,24 @@ button:hover {
     justify-content: flex-start;
   }
 
+  .final-preview-badges {
+    justify-content: flex-start;
+  }
+
   .parser-actions {
     grid-template-columns: 1fr;
   }
 
   .detected-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .final-preview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .export-help-grid {
+    grid-template-columns: 1fr;
   }
 
   .template-card .card-header button {
@@ -766,6 +897,10 @@ button:hover {
   }
 
   .detected-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .final-preview-grid {
     grid-template-columns: 1fr;
   }
 
