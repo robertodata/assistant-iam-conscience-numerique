@@ -22,6 +22,9 @@ const userModes = [
   { label: "Expert", value: "expert" },
 ];
 
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+
 type PermissionExplanation = {
   permission: string;
   description: string;
@@ -238,7 +241,7 @@ export default function Home() {
     setPolicyActionMessage(null);
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/generate-policy", {
+      const response = await fetch(`${API_BASE_URL}/generate-policy`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -355,7 +358,7 @@ export default function Home() {
     setNlpApplyMessage(null);
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/parse-request", {
+      const response = await fetch(`${API_BASE_URL}/parse-request`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -394,7 +397,7 @@ export default function Home() {
     setNlpApplyMessage(null);
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/parse-request", {
+      const response = await fetch(`${API_BASE_URL}/parse-request`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
