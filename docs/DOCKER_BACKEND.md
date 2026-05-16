@@ -1,52 +1,148 @@
 # Docker pour le backend FastAPI
 
-Ce document explique comment preparer le backend FastAPI avec Docker.
+Ce document explique le workflow Docker du backend FastAPI du projet
+`assistant-iam-conscience-numerique`.
 
-Cette etape ne remplace pas encore le lancement actuel avec `systemd`. Elle
-ajoute seulement une base Docker pour tester et preparer une evolution future.
+Docker est prepare ici comme une evolution future. Il ne remplace pas encore le
+lancement actuel avec `systemd`.
+
+## Definition simple de Docker
+
+Docker est un outil qui permet d'executer une application dans un environnement
+isole appele conteneur.
+
+Avec Docker, on peut regrouper dans une meme unite :
+
+- le systeme minimal necessaire ;
+- Python ;
+- les dependances du backend ;
+- le code FastAPI ;
+- la commande de lancement.
+
+Cela rend l'application plus facile a tester et plus reproductible entre
+plusieurs machines.
+
+## Image vs conteneur
+
+Une image Docker est un modele pret a etre lance.
+
+Elle contient tout ce qui est necessaire pour demarrer l'application, mais elle
+n'est pas encore en cours d'execution.
+
+Un conteneur Docker est une instance lancee a partir d'une image.
+
+On peut resumer ainsi :
+
+```text
+Dockerfile -> image Docker -> conteneur en cours d'execution
+```
+
+Dans ce projet :
+
+- l'image s'appelle `assistant-iam-backend` ;
+- le conteneur de test peut s'appeler `assistant-iam-backend-test`.
 
 ## Qu'est-ce qu'un Dockerfile ?
 
 Un `Dockerfile` est un fichier qui decrit comment construire une image Docker.
 
-Une image Docker contient :
+Dans ce projet, `backend/Dockerfile` :
 
-- une base systeme ;
-- Python ;
-- les dependances du backend ;
-- le code de l'application ;
-- la commande de lancement du serveur.
+- utilise `python:3.11-slim` ;
+- definit le dossier de travail `/app` ;
+- copie `requirements.txt` ;
+- installe les dependances Python ;
+- copie le code backend ;
+- expose le port `8000` ;
+- lance FastAPI avec Uvicorn.
 
-Dans ce projet, le fichier `backend/Dockerfile` prepare une image capable de
-lancer FastAPI avec Uvicorn sur le port `8000`.
+## Builder l'image backend
 
-## Construire l'image Docker
-
-Depuis la racine du projet :
+Depuis la racine du projet, aller dans le backend :
 
 ```bash
 cd backend
-docker build -t assistant-iam-backend .
 ```
 
-Cette commande lit le `Dockerfile`, installe les dependances Python et cree une
-image appelee `assistant-iam-backend`.
-
-## Lancer le conteneur
-
-Apres le build :
+Puis construire l'image :
 
 ```bash
-docker run --rm -p 8000:8000 assistant-iam-backend
+sudo docker build -t assistant-iam-backend .
 ```
 
-Cette commande lance le backend dans un conteneur et expose le port `8000`.
+Cette commande lit le `Dockerfile` et cree une image Docker nommee
+`assistant-iam-backend`.
 
-Le backend devrait ensuite etre accessible sur :
+## Lancer un conteneur de test
 
-```text
-http://127.0.0.1:8000
+Pour lancer un conteneur de test en arriere-plan :
+
+```bash
+sudo docker run -d -p 8002:8000 --name assistant-iam-backend-test assistant-iam-backend
 ```
+
+Explication :
+
+- `-d` lance le conteneur en arriere-plan ;
+- `-p 8002:8000` expose le port `8000` du conteneur sur le port `8002` de la
+  machine ;
+- `--name assistant-iam-backend-test` donne un nom clair au conteneur ;
+- `assistant-iam-backend` est l'image utilisee.
+
+Le port `8002` est utilise ici pour eviter de perturber un backend FastAPI deja
+lance sur le port `8000`.
+
+## Tester le backend Docker
+
+Pour verifier que le conteneur repond :
+
+```bash
+curl http://127.0.0.1:8002/health
+```
+
+La reponse attendue est :
+
+```json
+{"status":"ok"}
+```
+
+## Voir les logs du conteneur
+
+Pour lire les logs :
+
+```bash
+sudo docker logs assistant-iam-backend-test
+```
+
+Les logs permettent de verifier que Uvicorn a bien demarre et que les requetes
+arrivent jusqu'au backend.
+
+## Arreter et supprimer le conteneur de test
+
+Arreter le conteneur :
+
+```bash
+sudo docker stop assistant-iam-backend-test
+```
+
+Supprimer le conteneur :
+
+```bash
+sudo docker rm assistant-iam-backend-test
+```
+
+Ces deux commandes nettoient le test sans supprimer l'image Docker.
+
+## Verifier l'espace Docker utilise
+
+Pour voir l'espace disque utilise par Docker :
+
+```bash
+sudo docker system df
+```
+
+Cette commande est utile sur une EC2, car les images et conteneurs peuvent
+prendre de la place avec le temps.
 
 ## Role de .dockerignore
 
@@ -58,42 +154,36 @@ fichiers inutiles ou locaux :
 - `.pytest_cache`
 - `*.pyc`
 
-Cela rend l'image plus propre et evite d'envoyer des fichiers de developpement
+Cela garde l'image plus propre et evite d'envoyer des fichiers de developpement
 dans le conteneur.
 
-## Pourquoi on ne remplace pas encore systemd
+## Pourquoi on ne remplace pas encore systemd par Docker
 
-Actuellement, le projet est prepare pour un deploiement EC2 simple avec
-`systemd`.
+Le backend peut deja etre lance sur EC2 avec `systemd`.
 
-On ne remplace pas encore `systemd` par Docker car :
+Pour l'instant, on ne remplace pas encore `systemd` par Docker car :
 
 - le deploiement actuel doit rester stable ;
-- Docker ajoute une couche d'exploitation supplementaire ;
-- il faudra plus tard definir une strategie complete pour le frontend, le
-  backend, les logs et le reverse proxy ;
-- un changement progressif est plus prudent sur une EC2 qui peut deja heberger
-  d'autres services.
+- WordPress ou d'autres services peuvent deja tourner sur la meme EC2 ;
+- Docker change la maniere de gerer les logs, les ports et les redemarrages ;
+- il faut aussi reflechir au frontend, a Nginx ou Apache, et au workflow de
+  deploiement complet ;
+- une migration progressive limite le risque de casser l'existant.
 
-Docker est donc prepare comme evolution future, pas comme remplacement immediat.
+Docker sert donc d'abord a tester une execution isolee du backend. Quand le
+workflow sera bien compris, il pourra devenir la base d'une architecture plus
+standardisee.
 
-## Commande lancee dans le conteneur
+## Prochaine evolution : Docker Compose ou ECS
 
-Le conteneur lance :
+Deux evolutions possibles :
 
-```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
+- Docker Compose : utile pour lancer localement plusieurs services ensemble,
+  par exemple backend, frontend et reverse proxy.
+- Amazon ECS : service AWS permettant d'executer des conteneurs de maniere plus
+  industrielle, avec une meilleure gestion du deploiement et du scaling.
 
-`0.0.0.0` permet au serveur d'ecouter dans le conteneur et d'etre accessible via
-le port publie avec `docker run -p`.
+Pour debuter, Docker Compose est souvent plus simple a comprendre.
 
-## Prochaine evolution possible
-
-Plus tard, le projet pourra ajouter :
-
-- un `docker-compose.yml` ;
-- un conteneur frontend ;
-- une configuration de logs Docker ;
-- une integration avec Nginx ;
-- une pipeline CI/CD qui construit l'image automatiquement.
+ECS pourra venir plus tard si le projet doit devenir plus proche d'une
+architecture cloud production.
