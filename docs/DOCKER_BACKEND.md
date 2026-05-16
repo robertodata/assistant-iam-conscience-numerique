@@ -144,6 +144,68 @@ sudo docker system df
 Cette commande est utile sur une EC2, car les images et conteneurs peuvent
 prendre de la place avec le temps.
 
+## Script docker-backend-run.sh
+
+Le script `scripts/docker-backend-run.sh` servira a lancer le backend IAM en
+Docker de maniere repetable.
+
+Son role sera de :
+
+- arreter l'ancien conteneur Docker s'il existe deja ;
+- supprimer l'ancien conteneur ;
+- relancer un conteneur nomme `assistant-iam-backend-container` ;
+- exposer le backend Docker sur le port `8002` de la machine ;
+- garder le port interne `8000` dans le conteneur ;
+- tester Docker sans remplacer le backend `systemd` actuel en production.
+
+Commande prevue pour lancer le script :
+
+```bash
+bash scripts/docker-backend-run.sh
+```
+
+Verifier ensuite que le conteneur tourne :
+
+```bash
+sudo docker ps
+```
+
+Tester l'endpoint de sante du backend Docker :
+
+```bash
+curl http://127.0.0.1:8002/health
+```
+
+Le port `8002` permet de tester Docker a cote de la production actuelle, sans
+prendre la place du backend FastAPI qui utilise deja le port `8000`.
+
+## Production actuelle
+
+La production actuelle continue d'utiliser `systemd`.
+
+Le vrai site utilise encore le backend FastAPI lance par le service
+`assistant-iam-backend` sur le port `8000`.
+
+Le conteneur Docker est donc un test parallele. Il permet de verifier que le
+backend fonctionne bien dans Docker sans modifier le trafic de production.
+
+## Transition future
+
+Plus tard, Apache pourra pointer `/api` vers le backend Docker au lieu du
+backend `systemd`.
+
+Cette transition devra etre faite prudemment :
+
+- verifier que le conteneur Docker demarre correctement ;
+- verifier que `/health` repond ;
+- verifier les logs Docker ;
+- adapter la configuration Apache ;
+- recharger Apache ;
+- garder une solution de retour arriere vers `systemd` si necessaire.
+
+L'objectif est de passer progressivement vers Docker, sans casser le site
+existant.
+
 ## Role de .dockerignore
 
 Le fichier `backend/.dockerignore` evite de copier dans l'image Docker des
