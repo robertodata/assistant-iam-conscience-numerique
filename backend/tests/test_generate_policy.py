@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 import pytest
 
+from app import ai_provider
 from app.iam_validator import validate_iam_policy
 from app.main import app
 
@@ -43,20 +44,15 @@ def test_ai_status_returns_true_with_openai_key(monkeypatch):
     assert response.json() == {"openai_configured": True}
 
 
-def test_ai_explain_returns_clear_error_without_openai_key(monkeypatch):
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-
-    response = client.post(
-        "/ai/explain",
-        json={"prompt": "Explique s3:GetObject"},
-    )
-
-    assert response.status_code == 200
-    assert response.json() == {"explanation": "OPENAI_API_KEY manquante"}
-
-
-def test_ai_explain_returns_simulated_explanation(monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+@pytest.mark.parametrize("api_key", [None, "", "YOUR_OPENAI_API_KEY"])
+def test_ai_explain_returns_simulated_explanation_without_valid_key(
+    monkeypatch,
+    api_key,
+):
+    if api_key is None:
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    else:
+        monkeypatch.setenv("OPENAI_API_KEY", api_key)
 
     response = client.post(
         "/ai/explain",
@@ -67,6 +63,64 @@ def test_ai_explain_returns_simulated_explanation(monkeypatch):
     assert response.json() == {
         "explanation": "Explication IA simulée : Explique s3:GetObject"
     }
+
+
+def test_ai_explain_calls_openai_when_key_is_configured(monkeypatch):
+    class FakeCompletions:
+        def create(self, model, messages, max_tokens):
+            assert model == "gpt-4.1-mini"
+            assert messages[0]["role"] == "system"
+            assert messages[1] == {"role": "user", "content": "Explique s3:GetObject"}
+            assert max_tokens == 200
+            fake_message = type("FakeMessage", (), {"content": "Explication OpenAI"})()
+            fake_choice = type("FakeChoice", (), {"message": fake_message})()
+            return type("FakeResponse", (), {"choices": [fake_choice]})()
+
+    class FakeChat:
+        def __init__(self):
+            self.completions = FakeCompletions()
+
+    class FakeOpenAI:
+        def __init__(self, api_key, timeout):
+            assert api_key == "test-key"
+            assert timeout == 20.0
+            self.chat = FakeChat()
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr(ai_provider, "OpenAI", FakeOpenAI)
+
+    response = client.post(
+        "/ai/explain",
+        json={"prompt": "Explique s3:GetObject"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"explanation": "Explication OpenAI"}
+
+
+def test_ai_explain_returns_clear_error_when_openai_fails(monkeypatch):
+    class FailingCompletions:
+        def create(self, model, messages, max_tokens):
+            raise RuntimeError("OpenAI indisponible")
+
+    class FailingChat:
+        def __init__(self):
+            self.completions = FailingCompletions()
+
+    class FailingOpenAI:
+        def __init__(self, api_key, timeout):
+            self.chat = FailingChat()
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr(ai_provider, "OpenAI", FailingOpenAI)
+
+    response = client.post(
+        "/ai/explain",
+        json={"prompt": "Explique s3:GetObject"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"explanation": "Erreur IA : impossible de générer une réponse."}
 
 
 def test_parse_request_for_lambda_s3_read_sentence():

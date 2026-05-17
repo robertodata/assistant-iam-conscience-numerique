@@ -1,6 +1,7 @@
 import os
 
 from dotenv import load_dotenv
+from openai import OpenAI
 
 
 # .env permet de garder les secrets en dehors du code source.
@@ -16,16 +17,35 @@ def get_openai_api_key() -> str | None:
 def is_openai_configured() -> bool:
     api_key = get_openai_api_key()
 
-    if not api_key:
+    if not api_key or not api_key.strip():
         return False
 
     return api_key.strip() != "YOUR_OPENAI_API_KEY"
 
 
 def generate_ai_explanation(prompt: str) -> str:
-    # Pour l'instant, on verifie seulement la configuration.
-    # Aucun appel reel a OpenAI n'est effectue ici.
+    # Sans vraie cle API, on garde un fallback simule pour ne pas casser
+    # l'application et pour eviter tout appel externe involontaire.
     if not is_openai_configured():
-        return "OPENAI_API_KEY manquante"
+        return "Explication IA simulée : " + prompt
 
-    return "Explication IA simulée : " + prompt
+    try:
+        client = OpenAI(api_key=get_openai_api_key(), timeout=20.0)
+        response = client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Tu expliques IAM simplement en francais. "
+                        "Reponds en 150 mots maximum."
+                    ),
+                },
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=200,
+        )
+
+        return response.choices[0].message.content.strip()
+    except Exception:
+        return "Erreur IA : impossible de générer une réponse."
