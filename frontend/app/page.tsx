@@ -686,7 +686,7 @@ export default function Home() {
           {aiError ? <p className="error">{aiError}</p> : null}
 
           {aiResponse ? (
-            <div className="ai-response">
+            <div className="ai-output">
               <span>Réponse IA</span>
               <p>{aiResponse}</p>
             </div>

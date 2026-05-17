@@ -1,8 +1,10 @@
 :root {
   color-scheme: light;
-  background: #f4f6fa;
+  background: #eef2f7;
   color: #172033;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
 }
 
 * {
@@ -11,27 +13,30 @@
 
 body {
   margin: 0;
-  background: #f4f6fa;
+  background:
+    radial-gradient(circle at top left, rgba(49, 88, 212, 0.12), transparent 34rem),
+    linear-gradient(180deg, #f8fafc 0%, #eef2f7 48%, #f5f7fb 100%);
+  color: #172033;
 }
 
 .page {
   min-height: 100vh;
-  padding: 40px 24px;
+  padding: 48px 24px;
 }
 
 .page-shell {
-  width: min(1040px, 100%);
+  width: min(1120px, 100%);
   margin: 0 auto;
   display: grid;
-  gap: 20px;
+  gap: 22px;
 }
 
 .card {
-  border: 1px solid #d8deea;
+  border: 1px solid rgba(216, 222, 234, 0.92);
   border-radius: 8px;
-  padding: 24px;
-  background: #ffffff;
-  box-shadow: 0 10px 30px rgba(25, 37, 63, 0.06);
+  padding: 26px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 18px 50px rgba(25, 37, 63, 0.08);
 }
 
 .intro-card {
@@ -57,6 +62,7 @@ body {
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+  padding-bottom: 2px;
 }
 
 .eyebrow {
@@ -80,6 +86,10 @@ p {
 }
 
 .muted {
+  border: 1px solid #dbe3f0;
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #f8fafc;
   color: #66738a;
   font-size: 0.92rem;
   font-weight: 700;
@@ -97,11 +107,15 @@ input,
 select,
 textarea {
   width: 100%;
-  border: 1px solid #c7cede;
+  border: 1px solid #c5cfdf;
   border-radius: 6px;
   color: #172033;
-  background: #ffffff;
+  background: #fbfcff;
   font: inherit;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease;
 }
 
 input,
@@ -125,6 +139,7 @@ input:focus,
 select:focus,
 textarea:focus {
   border-color: #3158d4;
+  background: #ffffff;
   outline: 3px solid #dbe5ff;
 }
 
@@ -133,20 +148,29 @@ button {
   border: 0;
   border-radius: 6px;
   padding: 0 18px;
-  background: #1947d2;
+  background: linear-gradient(180deg, #3158d4 0%, #1947d2 100%);
   color: #ffffff;
   font-size: 0.98rem;
   font-weight: 700;
   cursor: pointer;
+  box-shadow: 0 10px 22px rgba(25, 71, 210, 0.18);
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    background 140ms ease;
 }
 
 button:hover {
-  background: #1238aa;
+  background: linear-gradient(180deg, #284cc0 0%, #1238aa 100%);
+  box-shadow: 0 12px 26px rgba(25, 71, 210, 0.22);
+  transform: translateY(-1px);
 }
 
 button:disabled {
   background: #9aa7bd;
   cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
 }
 
 .helper-text {
@@ -203,24 +227,33 @@ button:disabled {
 
 .ai-button {
   width: fit-content;
+  background: linear-gradient(180deg, #25324a 0%, #182235 100%);
+  box-shadow: 0 10px 22px rgba(37, 50, 74, 0.16);
 }
 
-.ai-response {
+.ai-button:hover {
+  background: linear-gradient(180deg, #1e293f 0%, #121b2d 100%);
+}
+
+.ai-response,
+.ai-output {
   display: grid;
   gap: 8px;
   border: 1px solid #c7d7f7;
   border-radius: 8px;
   padding: 16px;
-  background: #f5f8ff;
+  background: linear-gradient(180deg, #f8fbff 0%, #f1f6ff 100%);
 }
 
-.ai-response span {
+.ai-response span,
+.ai-output span {
   color: #3158d4;
   font-size: 0.86rem;
   font-weight: 800;
 }
 
-.ai-response p {
+.ai-response p,
+.ai-output p {
   margin: 0;
   color: #263247;
 }
