@@ -15,6 +15,18 @@ def test_health_returns_status_ok():
     assert response.json() == {"status": "ok"}
 
 
+def test_ai_explain_returns_simulated_explanation():
+    response = client.post(
+        "/ai/explain",
+        json={"prompt": "Explique s3:GetObject"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "explanation": "Explication IA simulée : Explique s3:GetObject"
+    }
+
+
 def test_parse_request_for_lambda_s3_read_sentence():
     response = client.post(
         "/parse-request",

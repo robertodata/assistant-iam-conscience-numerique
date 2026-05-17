@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from .ai_provider import generate_ai_explanation
 from .iac_generator import build_cloudformation_template, build_terraform_template
 from .iam_engine import (
     build_explanations,
@@ -49,6 +50,10 @@ class ParseRequest(BaseModel):
     text: str
 
 
+class AiExplainRequest(BaseModel):
+    prompt: str
+
+
 @app.get("/health")
 def health_check() -> dict[str, str]:
     return {"status": "ok"}
@@ -59,6 +64,13 @@ def parse_request(request: ParseRequest) -> dict:
     # Ce endpoint transforme une phrase utilisateur en intention IAM simple.
     # Pour l'instant, il utilise uniquement des mots-cles et aucune IA externe.
     return parse_user_request(request.text)
+
+
+@app.post("/ai/explain")
+def explain_with_ai(request: AiExplainRequest) -> dict[str, str]:
+    # Ce endpoint prepare une future integration IA.
+    # Aujourd'hui, il retourne seulement une reponse simulee.
+    return {"explanation": generate_ai_explanation(request.prompt)}
 
 
 @app.post("/generate-policy")
