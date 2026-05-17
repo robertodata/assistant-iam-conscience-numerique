@@ -15,7 +15,39 @@ def test_health_returns_status_ok():
     assert response.json() == {"status": "ok"}
 
 
-def test_ai_explain_returns_simulated_explanation():
+def test_ai_status_returns_false_without_openai_key(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    response = client.get("/ai/status")
+
+    assert response.status_code == 200
+    assert response.json() == {"openai_configured": False}
+
+
+def test_ai_status_returns_true_with_openai_key(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+
+    response = client.get("/ai/status")
+
+    assert response.status_code == 200
+    assert response.json() == {"openai_configured": True}
+
+
+def test_ai_explain_returns_clear_error_without_openai_key(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    response = client.post(
+        "/ai/explain",
+        json={"prompt": "Explique s3:GetObject"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"explanation": "OPENAI_API_KEY manquante"}
+
+
+def test_ai_explain_returns_simulated_explanation(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+
     response = client.post(
         "/ai/explain",
         json={"prompt": "Explique s3:GetObject"},

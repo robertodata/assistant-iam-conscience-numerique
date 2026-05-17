@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from .ai_provider import generate_ai_explanation
+from .ai_provider import generate_ai_explanation, is_openai_configured
 from .iac_generator import build_cloudformation_template, build_terraform_template
 from .iam_engine import (
     build_explanations,
@@ -71,6 +71,11 @@ def explain_with_ai(request: AiExplainRequest) -> dict[str, str]:
     # Ce endpoint prepare une future integration IA.
     # Aujourd'hui, il retourne seulement une reponse simulee.
     return {"explanation": generate_ai_explanation(request.prompt)}
+
+
+@app.get("/ai/status")
+def get_ai_status() -> dict[str, bool]:
+    return {"openai_configured": is_openai_configured()}
 
 
 @app.post("/generate-policy")
