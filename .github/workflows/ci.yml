@@ -29,7 +29,7 @@ jobs:
       # Lance les tests backend.
       - name: Run backend tests
         working-directory: backend
-        run: pytest
+        run: PYTHONPATH=. pytest
 
   frontend:
     name: Frontend build
