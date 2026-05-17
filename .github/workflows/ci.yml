@@ -1,0 +1,57 @@
+name: CI
+
+# Le workflow se lance a chaque push et pull request.
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+
+    steps:
+      # Recupere le code du depot.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Installe Python 3.11 pour le backend FastAPI.
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # Installe les dependances backend.
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      # Lance les tests backend.
+      - name: Run backend tests
+        working-directory: backend
+        run: pytest
+
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+
+    steps:
+      # Recupere le code du depot.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Installe Node.js 20 pour Next.js.
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # Installe les dependances frontend.
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm install
+
+      # Verifie que le frontend Next.js peut etre construit.
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
