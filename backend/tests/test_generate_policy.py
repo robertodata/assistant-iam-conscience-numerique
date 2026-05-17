@@ -24,6 +24,16 @@ def test_ai_status_returns_false_without_openai_key(monkeypatch):
     assert response.json() == {"openai_configured": False}
 
 
+@pytest.mark.parametrize("api_key", ["", "YOUR_OPENAI_API_KEY"])
+def test_ai_status_returns_false_with_invalid_openai_key(monkeypatch, api_key):
+    monkeypatch.setenv("OPENAI_API_KEY", api_key)
+
+    response = client.get("/ai/status")
+
+    assert response.status_code == 200
+    assert response.json() == {"openai_configured": False}
+
+
 def test_ai_status_returns_true_with_openai_key(monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
 

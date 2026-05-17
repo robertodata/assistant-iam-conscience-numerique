@@ -14,7 +14,12 @@ def get_openai_api_key() -> str | None:
 
 
 def is_openai_configured() -> bool:
-    return get_openai_api_key() is not None
+    api_key = get_openai_api_key()
+
+    if not api_key:
+        return False
+
+    return api_key.strip() != "YOUR_OPENAI_API_KEY"
 
 
 def generate_ai_explanation(prompt: str) -> str:
