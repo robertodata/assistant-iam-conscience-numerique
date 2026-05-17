@@ -234,6 +234,10 @@ export default function Home() {
   >([]);
   const [lastGeneratedPayload, setLastGeneratedPayload] =
     useState<GeneratePolicyPayload | null>(null);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiResponse, setAiResponse] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [isAskingAi, setIsAskingAi] = useState(false);
 
   async function generatePolicyWithPayload(payload: GeneratePolicyPayload) {
     setIsGenerating(true);
@@ -385,6 +389,47 @@ export default function Home() {
       );
     } finally {
       setIsParsing(false);
+    }
+  }
+
+  async function askIamAssistant() {
+    const trimmedPrompt = aiPrompt.trim();
+
+    if (!trimmedPrompt) {
+      setAiError("Écris une question IAM avant de demander à l'IA.");
+      setAiResponse(null);
+      return;
+    }
+
+    setIsAskingAi(true);
+    setAiError(null);
+    setAiResponse(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/ai/explain`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt: trimmedPrompt,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("L'assistant IA n'a pas pu répondre.");
+      }
+
+      const data = await response.json();
+      setAiResponse(data.explanation ?? "Aucune réponse IA disponible.");
+    } catch (currentError) {
+      setAiError(
+        currentError instanceof Error
+          ? currentError.message
+          : "Une erreur inconnue est survenue avec l'assistant IA.",
+      );
+    } finally {
+      setIsAskingAi(false);
     }
   }
 
@@ -601,6 +646,51 @@ export default function Home() {
             Génère un rôle IAM pédagogique avec une trust policy, une permission
             policy et un score de sécurité simple.
           </p>
+        </section>
+
+        <section className="card ai-assistant-card">
+          <div className="card-header">
+            <div>
+              <p className="eyebrow">OpenAI</p>
+              <h2>Assistant IA IAM</h2>
+            </div>
+            <span className="muted">Explication</span>
+          </div>
+
+          <p className="helper-text">
+            L'assistant IA utilise OpenAI pour expliquer les concepts IAM.
+          </p>
+
+          <label className="field">
+            <span>Question IAM</span>
+            <textarea
+              value={aiPrompt}
+              onChange={(event) => {
+                setAiPrompt(event.target.value);
+                setAiError(null);
+              }}
+              placeholder="Pose une question IAM..."
+              rows={5}
+            />
+          </label>
+
+          <button
+            className="ai-button"
+            type="button"
+            onClick={askIamAssistant}
+            disabled={isAskingAi}
+          >
+            {isAskingAi ? "Réponse en cours..." : "Demander à l'IA"}
+          </button>
+
+          {aiError ? <p className="error">{aiError}</p> : null}
+
+          {aiResponse ? (
+            <div className="ai-response">
+              <span>Réponse IA</span>
+              <p>{aiResponse}</p>
+            </div>
+          ) : null}
         </section>
 
         <section className="card parser-card">

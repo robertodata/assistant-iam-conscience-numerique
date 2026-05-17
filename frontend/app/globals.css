@@ -94,15 +94,27 @@ p {
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
-  min-height: 44px;
   border: 1px solid #c7cede;
   border-radius: 6px;
-  padding: 0 14px;
   color: #172033;
   background: #ffffff;
   font: inherit;
+}
+
+input,
+select {
+  min-height: 44px;
+  padding: 0 14px;
+}
+
+textarea {
+  min-height: 140px;
+  padding: 12px 14px;
+  line-height: 1.55;
+  resize: vertical;
 }
 
 select {
@@ -110,7 +122,8 @@ select {
 }
 
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
   border-color: #3158d4;
   outline: 3px solid #dbe5ff;
 }
@@ -129,6 +142,11 @@ button {
 
 button:hover {
   background: #1238aa;
+}
+
+button:disabled {
+  background: #9aa7bd;
+  cursor: not-allowed;
 }
 
 .helper-text {
@@ -172,6 +190,39 @@ button:hover {
 .parser-card {
   display: grid;
   gap: 16px;
+}
+
+.ai-assistant-card {
+  display: grid;
+  gap: 16px;
+}
+
+.ai-assistant-card .field {
+  margin-top: 4px;
+}
+
+.ai-button {
+  width: fit-content;
+}
+
+.ai-response {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #c7d7f7;
+  border-radius: 8px;
+  padding: 16px;
+  background: #f5f8ff;
+}
+
+.ai-response span {
+  color: #3158d4;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.ai-response p {
+  margin: 0;
+  color: #263247;
 }
 
 .parser-card .field {
@@ -905,6 +956,10 @@ button:hover {
   }
 
   .analysis-actions button {
+    width: 100%;
+  }
+
+  .ai-button {
     width: 100%;
   }
 
