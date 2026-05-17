@@ -1,7 +1,11 @@
+import logging
 import os
 
 from dotenv import load_dotenv
 from openai import OpenAI
+
+
+logger = logging.getLogger(__name__)
 
 
 # .env permet de garder les secrets en dehors du code source.
@@ -48,4 +52,5 @@ def generate_ai_explanation(prompt: str) -> str:
 
         return response.choices[0].message.content.strip()
     except Exception:
+        logger.exception("Erreur pendant l'appel OpenAI du provider IA.")
         return "Erreur IA : impossible de générer une réponse."
