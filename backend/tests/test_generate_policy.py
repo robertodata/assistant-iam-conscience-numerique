@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 import pytest
 
 from app import ai_provider
+from app.aws_service_catalog import get_actions_for_service
 from app.iam_validator import validate_iam_policy
 from app.main import app
 
@@ -14,6 +15,44 @@ def test_health_returns_status_ok():
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def test_iam_services_returns_supported_service_catalog():
+    response = client.get("/iam/services")
+
+    assert response.status_code == 200
+    catalog = response.json()
+    assert set(catalog) == {
+        "s3",
+        "dynamodb",
+        "lambda",
+        "ec2",
+        "ecr",
+        "cloudwatch",
+        "billing",
+    }
+    assert catalog["s3"]["read"] == ["s3:GetObject", "s3:ListBucket"]
+    assert catalog["ecr"]["push"] == [
+        "ecr:GetAuthorizationToken",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload",
+        "ecr:PutImage",
+    ]
+
+
+def test_get_actions_for_service_returns_catalog_actions():
+    assert get_actions_for_service("lambda", "invoke") == ["lambda:InvokeFunction"]
+    assert get_actions_for_service("ec2", "start_stop") == [
+        "ec2:StartInstances",
+        "ec2:StopInstances",
+    ]
+
+
+def test_get_actions_for_service_returns_empty_list_for_unknown_values():
+    assert get_actions_for_service("unknown", "read") == []
+    assert get_actions_for_service("s3", "unknown") == []
 
 
 def test_ai_status_returns_false_without_openai_key(monkeypatch):
