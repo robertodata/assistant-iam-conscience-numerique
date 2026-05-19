@@ -85,6 +85,15 @@ type GenerationHistoryEntry = GeneratePolicyPayload & {
   generatedAt: string;
 };
 
+type IamAnalysisResult = {
+  request: string;
+  services: string[];
+  intents: string[];
+  actions: string[];
+  risk_level: "low" | "medium" | "high";
+  recommendations: string[];
+};
+
 function getSecurityBadgeClass(level: string) {
   if (level === "Bon") {
     return "badge badge-good";
@@ -123,6 +132,30 @@ function getRiskLabel(severity: ValidationFinding["severity"]) {
   }
 
   return "Risque faible";
+}
+
+function getAnalysisRiskLabel(riskLevel: IamAnalysisResult["risk_level"]) {
+  if (riskLevel === "high") {
+    return "Risque élevé";
+  }
+
+  if (riskLevel === "medium") {
+    return "Risque moyen";
+  }
+
+  return "Risque faible";
+}
+
+function getAnalysisRiskBadgeClass(riskLevel: IamAnalysisResult["risk_level"]) {
+  if (riskLevel === "high") {
+    return "badge badge-risk";
+  }
+
+  if (riskLevel === "medium") {
+    return "badge badge-medium";
+  }
+
+  return "badge badge-good";
 }
 
 function extractResourceName(text: string) {
@@ -340,6 +373,13 @@ export default function Home() {
     null,
   );
   const [resourceArnError, setResourceArnError] = useState<string | null>(null);
+  const [iamAnalysisText, setIamAnalysisText] = useState(
+    "Je veux qu'une Lambda lise un bucket S3 et écrive dans DynamoDB",
+  );
+  const [iamAnalysisResult, setIamAnalysisResult] =
+    useState<IamAnalysisResult | null>(null);
+  const [iamAnalysisError, setIamAnalysisError] = useState<string | null>(null);
+  const [isAnalyzingIam, setIsAnalyzingIam] = useState(false);
 
   async function generatePolicyWithPayload(payload: GeneratePolicyPayload) {
     setIsGenerating(true);
@@ -536,6 +576,48 @@ export default function Home() {
       setIsAskingAi(false);
     }
   }
+
+  async function analyzeIamRequest() {
+    const trimmedRequest = iamAnalysisText.trim();
+
+    if (!trimmedRequest) {
+      setIamAnalysisError("Écris une demande IAM avant de lancer l'analyse.");
+      setIamAnalysisResult(null);
+      return;
+    }
+
+    setIsAnalyzingIam(true);
+    setIamAnalysisError(null);
+    setIamAnalysisResult(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/iam/analyze`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          request: trimmedRequest,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Le backend n'a pas pu analyser cette demande IAM.");
+      }
+
+      const data = await response.json();
+      setIamAnalysisResult(data);
+    } catch (currentError) {
+      setIamAnalysisError(
+        currentError instanceof Error
+          ? currentError.message
+          : "Une erreur inconnue est survenue pendant l'analyse IAM.",
+      );
+    } finally {
+      setIsAnalyzingIam(false);
+    }
+  }
+
 
   async function generateAutomatically() {
     setIsParsing(true);
@@ -834,6 +916,118 @@ export default function Home() {
             <div className="ai-output">
               <span>Réponse IA</span>
               <p>{aiResponse}</p>
+            </div>
+          ) : null}
+        </section>
+
+        <section className="card iam-smart-analysis-card">
+          <div className="card-header">
+            <div>
+              <p className="eyebrow">Catalogue AWS</p>
+              <h2>Analyse IAM intelligente</h2>
+            </div>
+            <span className="muted">Analyse déterministe</span>
+          </div>
+
+          <p className="helper-text">
+            Cette analyse utilise le catalogue AWS local pour proposer des
+            actions IAM probables, sans appeler OpenAI.
+          </p>
+
+          <label className="field">
+            <span>Demande IAM</span>
+            <textarea
+              value={iamAnalysisText}
+              onChange={(event) => {
+                setIamAnalysisText(event.target.value);
+                setIamAnalysisError(null);
+              }}
+              placeholder="Ex: Je veux qu’une Lambda lise un bucket S3 et écrive dans DynamoDB"
+              rows={5}
+            />
+          </label>
+
+          <button
+            type="button"
+            onClick={analyzeIamRequest}
+            disabled={isAnalyzingIam}
+          >
+            {isAnalyzingIam ? "Analyse en cours..." : "Analyser la demande"}
+          </button>
+
+          {iamAnalysisError ? <p className="error">{iamAnalysisError}</p> : null}
+
+          {iamAnalysisResult ? (
+            <div className="iam-analysis-result">
+              <div className="analysis-summary-row">
+                <div>
+                  <span>Niveau de risque</span>
+                  <strong
+                    className={getAnalysisRiskBadgeClass(
+                      iamAnalysisResult.risk_level,
+                    )}
+                  >
+                    {getAnalysisRiskLabel(iamAnalysisResult.risk_level)}
+                  </strong>
+                </div>
+                <div>
+                  <span>Demande analysée</span>
+                  <strong>{iamAnalysisResult.request}</strong>
+                </div>
+              </div>
+
+              <div className="analysis-grid">
+                <article>
+                  <h3>Services détectés</h3>
+                  <div className="analysis-chip-list">
+                    {iamAnalysisResult.services.length > 0 ? (
+                      iamAnalysisResult.services.map((service) => (
+                        <span className="analysis-chip" key={service}>
+                          {service}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="missing-badge">Non détecté</span>
+                    )}
+                  </div>
+                </article>
+                <article>
+                  <h3>Intentions détectées</h3>
+                  <div className="analysis-chip-list">
+                    {iamAnalysisResult.intents.length > 0 ? (
+                      iamAnalysisResult.intents.map((intent) => (
+                        <span className="analysis-chip" key={intent}>
+                          {intent}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="missing-badge">Non détecté</span>
+                    )}
+                  </div>
+                </article>
+              </div>
+
+              <div className="analysis-list-section">
+                <h3>Actions IAM proposées</h3>
+                {iamAnalysisResult.actions.length > 0 ? (
+                  <ul className="analysis-list">
+                    {iamAnalysisResult.actions.map((action) => (
+                      <li key={action}>{action}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="empty-state">Aucune action IAM proposée.</p>
+                )}
+              </div>
+
+              <div className="analysis-list-section">
+                <h3>Recommandations</h3>
+                <ul className="analysis-list">
+                  {iamAnalysisResult.recommendations.map((recommendation) => (
+                    <li key={recommendation}>{recommendation}</li>
+                  ))}
+                </ul>
+              </div>
             </div>
           ) : null}
         </section>

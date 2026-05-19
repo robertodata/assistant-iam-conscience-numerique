@@ -216,6 +216,102 @@ button:disabled {
   gap: 16px;
 }
 
+.iam-smart-analysis-card {
+  display: grid;
+  gap: 16px;
+}
+
+.iam-smart-analysis-card button {
+  width: fit-content;
+}
+
+.iam-analysis-result {
+  display: grid;
+  gap: 16px;
+  border: 1px solid #d8deea;
+  border-radius: 8px;
+  padding: 16px;
+  background: #f8fafc;
+}
+
+.analysis-summary-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.35fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.analysis-summary-row > div {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #d8deea;
+  border-radius: 8px;
+  padding: 14px;
+  background: #ffffff;
+}
+
+.analysis-summary-row span,
+.analysis-grid h3,
+.analysis-list-section h3 {
+  margin: 0;
+  color: #66738a;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.analysis-summary-row strong {
+  color: #172033;
+  overflow-wrap: anywhere;
+}
+
+.analysis-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.analysis-grid article,
+.analysis-list-section {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #d8deea;
+  border-radius: 8px;
+  padding: 14px;
+  background: #ffffff;
+}
+
+.analysis-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.analysis-chip {
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: #eef3ff;
+  color: #3158d4;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.analysis-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.analysis-list li {
+  border: 1px solid #e1e7f2;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #ffffff;
+  color: #263247;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
 .ai-assistant-card {
   display: grid;
   gap: 16px;
@@ -957,6 +1053,11 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
+  .analysis-summary-row,
+  .analysis-grid {
+    grid-template-columns: 1fr;
+  }
+
   .detected-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1017,6 +1118,10 @@ button:disabled {
   }
 
   .ai-button {
+    width: 100%;
+  }
+
+  .iam-smart-analysis-card button {
     width: 100%;
   }
 
