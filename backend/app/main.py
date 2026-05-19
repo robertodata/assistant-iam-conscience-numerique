@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from .ai_provider import generate_ai_explanation, is_openai_configured
+from .iam_analyzer import analyze_iam_request
 from .aws_service_catalog import list_supported_services
 from .iac_generator import build_cloudformation_template, build_terraform_template
 from .iam_engine import (
@@ -55,6 +56,10 @@ class AiExplainRequest(BaseModel):
     prompt: str
 
 
+class IamAnalyzeRequest(BaseModel):
+    request: str
+
+
 @app.get("/health")
 def health_check() -> dict[str, str]:
     return {"status": "ok"}
@@ -84,6 +89,13 @@ def get_iam_services() -> dict:
     # Cette route expose le catalogue des services IAM connus par le backend.
     # Elle prepare l'interface a proposer plus de services AWS progressivement.
     return list_supported_services()
+
+
+@app.post("/iam/analyze")
+def analyze_iam(request: IamAnalyzeRequest) -> dict:
+    # Cette analyse reste deterministe : elle utilise le catalogue local et
+    # des mots-cles simples, sans appel OpenAI.
+    return analyze_iam_request(request.request)
 
 
 @app.post("/generate-policy")

@@ -55,6 +55,96 @@ def test_get_actions_for_service_returns_empty_list_for_unknown_values():
     assert get_actions_for_service("s3", "unknown") == []
 
 
+def test_iam_analyze_detects_s3_read_request():
+    response = client.post(
+        "/iam/analyze",
+        json={"request": "Je veux qu'une Lambda lise un bucket S3"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "request": "Je veux qu'une Lambda lise un bucket S3",
+        "services": ["s3", "lambda"],
+        "intents": ["read"],
+        "actions": ["s3:GetObject", "s3:ListBucket"],
+        "risk_level": "low",
+        "recommendations": [
+            "Précisez un ARN de ressource pour éviter Resource *.",
+        ],
+    }
+
+
+def test_iam_analyze_detects_ecr_push_request():
+    response = client.post(
+        "/iam/analyze",
+        json={"request": "Je veux pousser une image Docker dans ECR"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["services"] == ["ecr"]
+    assert data["intents"] == ["push"]
+    assert data["actions"] == [
+        "ecr:GetAuthorizationToken",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload",
+        "ecr:PutImage",
+    ]
+    assert data["risk_level"] == "medium"
+
+
+def test_iam_analyze_detects_billing_read_request():
+    response = client.post(
+        "/iam/analyze",
+        json={"request": "Consulter les coûts de facturation AWS"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["services"] == ["billing"]
+    assert data["intents"] == ["read"]
+    assert data["actions"] == ["aws-portal:ViewBilling", "ce:GetCostAndUsage"]
+    assert data["risk_level"] == "low"
+
+
+def test_iam_analyze_detects_delete_risk():
+    response = client.post(
+        "/iam/analyze",
+        json={"request": "Supprimer des objets dans un bucket S3"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["services"] == ["s3"]
+    assert data["intents"] == ["delete"]
+    assert data["actions"] == ["s3:DeleteObject"]
+    assert data["risk_level"] == "medium"
+    assert "Validez les permissions destructrices avec une revue de sécurité." in data[
+        "recommendations"
+    ]
+
+
+def test_iam_analyze_returns_guidance_for_unknown_request():
+    response = client.post(
+        "/iam/analyze",
+        json={"request": "Je veux quelque chose de vague"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["services"] == []
+    assert data["intents"] == []
+    assert data["actions"] == []
+    assert data["risk_level"] == "low"
+    assert "Précisez le service AWS concerné." in data["recommendations"]
+    assert (
+        "Précisez l'action attendue : lire, écrire, supprimer ou invoquer."
+        in data["recommendations"]
+    )
+
+
 def test_ai_status_returns_false_without_openai_key(monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
