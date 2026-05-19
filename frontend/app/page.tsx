@@ -187,6 +187,103 @@ function formatResourceValue(resource: string | string[]) {
   return resource;
 }
 
+function hasWildcardResource(policy: IamPolicy | null) {
+  if (!policy) {
+    return false;
+  }
+
+  return policy.Statement.some((statement) => {
+    if (Array.isArray(statement.Resource)) {
+      return statement.Resource.includes("*");
+    }
+
+    return statement.Resource === "*";
+  });
+}
+
+function replaceWildcardResources(policy: IamPolicy, resourceArn: string): IamPolicy {
+  return {
+    ...policy,
+    Statement: policy.Statement.map((statement) => ({
+      ...statement,
+      Resource: Array.isArray(statement.Resource)
+        ? statement.Resource.map((resource) =>
+            resource === "*" ? resourceArn : resource,
+          )
+        : statement.Resource === "*"
+          ? resourceArn
+          : statement.Resource,
+    })),
+  };
+}
+
+function analyzePolicySecurity(policy: IamPolicy): SecurityFinding[] {
+  const findings: SecurityFinding[] = [];
+
+  policy.Statement.forEach((statement) => {
+    const resources = Array.isArray(statement.Resource)
+      ? statement.Resource
+      : [statement.Resource];
+
+    if (resources.includes("*")) {
+      findings.push({
+        severity: "medium",
+        title: "Resource trop large",
+        description:
+          "Resource '*' applique la permission à toutes les ressources compatibles.",
+      });
+    }
+
+    statement.Action.forEach((action) => {
+      if (action.includes("*")) {
+        findings.push({
+          severity: "high",
+          title: "Wildcard Action détecté",
+          description:
+            "Action '*' donne tous les droits possibles pour le périmètre cible.",
+        });
+      }
+
+      if (action.includes("Delete")) {
+        findings.push({
+          severity: "medium",
+          title: "Permission Delete détectée",
+          description: `La permission ${action} peut supprimer des données ou des ressources.`,
+        });
+      }
+    });
+  });
+
+  return findings;
+}
+
+function calculateSecurityResultFromFindings(
+  findings: SecurityFinding[],
+): SecurityResult {
+  const score = findings.reduce((currentScore, finding) => {
+    if (finding.severity === "high") {
+      return currentScore - 30;
+    }
+
+    if (finding.severity === "medium") {
+      return currentScore - 15;
+    }
+
+    return currentScore - 5;
+  }, 100);
+  const safeScore = Math.max(score, 0);
+
+  if (safeScore >= 80) {
+    return { score: safeScore, level: "Bon" };
+  }
+
+  if (safeScore >= 50) {
+    return { score: safeScore, level: "Moyen" };
+  }
+
+  return { score: safeScore, level: "Risque eleve" };
+}
+
 export default function Home() {
   const [roleName, setRoleName] = useState<string | null>(null);
   const [trustPolicy, setTrustPolicy] = useState<object | null>(null);
@@ -238,11 +335,18 @@ export default function Home() {
   const [aiResponse, setAiResponse] = useState<string | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const [isAskingAi, setIsAskingAi] = useState(false);
+  const [resourceArn, setResourceArn] = useState("");
+  const [resourceArnMessage, setResourceArnMessage] = useState<string | null>(
+    null,
+  );
+  const [resourceArnError, setResourceArnError] = useState<string | null>(null);
 
   async function generatePolicyWithPayload(payload: GeneratePolicyPayload) {
     setIsGenerating(true);
     setError(null);
     setPolicyActionMessage(null);
+    setResourceArnMessage(null);
+    setResourceArnError(null);
 
     try {
       const response = await fetch(`${API_BASE_URL}/generate-policy`, {
@@ -544,6 +648,43 @@ export default function Home() {
     setGenerationHistory([]);
   }
 
+  function applyResourceArn() {
+    const trimmedArn = resourceArn.trim();
+
+    if (!trimmedArn) {
+      setResourceArnError("Renseigne un ARN avant de l'appliquer.");
+      setResourceArnMessage(null);
+      return;
+    }
+
+    if (!trimmedArn.startsWith("arn:aws:")) {
+      setResourceArnError("L'ARN doit commencer par arn:aws:");
+      setResourceArnMessage(null);
+      return;
+    }
+
+    if (!policyResult || !hasWildcardResource(policyResult)) {
+      setResourceArnError("Génère d'abord une policy contenant Resource '*'.");
+      setResourceArnMessage(null);
+      return;
+    }
+
+    const updatedPolicy = replaceWildcardResources(policyResult, trimmedArn);
+    const updatedFindings = analyzePolicySecurity(updatedPolicy);
+
+    setPolicyResult(updatedPolicy);
+    setSecurityFindings(updatedFindings);
+    setSecurityResult(calculateSecurityResultFromFindings(updatedFindings));
+    setWarnings((currentWarnings) =>
+      currentWarnings.filter(
+        (warning) =>
+          !warning.includes("Resource '*'") && !warning.includes("trop large"),
+      ),
+    );
+    setResourceArnError(null);
+    setResourceArnMessage("ARN appliqué à la permission policy.");
+  }
+
   function downloadGeneratedFile(
     content: string,
     fileName: string,
@@ -635,6 +776,10 @@ export default function Home() {
     cloudFormationTemplate ? "CloudFormation" : null,
     terraformTemplate ? "Terraform" : null,
   ].filter(Boolean);
+  const isNlpResourceMissing = parsedRequest ? !parsedRequest.resource_name : false;
+  const isPolicyResourceWildcard = hasWildcardResource(policyResult);
+  const shouldShowResourceGuidance =
+    isNlpResourceMissing || isPolicyResourceWildcard;
 
   return (
     <main className="page">
@@ -937,6 +1082,46 @@ export default function Home() {
 
           {error ? <p className="error">{error}</p> : null}
         </section>
+
+        {shouldShowResourceGuidance ? (
+          <section className="card resource-warning-card">
+            <div className="card-header">
+              <div>
+                <p className="eyebrow">Least Privilege</p>
+                <h2>Ressource AWS manquante</h2>
+              </div>
+              <span className="muted">ARN recommandé</span>
+            </div>
+
+            <p className="helper-text">
+              Limiter Resource permet d'appliquer le principe du moindre
+              privilège.
+            </p>
+
+            <label className="field">
+              <span>ARN de la ressource</span>
+              <input
+                type="text"
+                value={resourceArn}
+                onChange={(event) => {
+                  setResourceArn(event.target.value);
+                  setResourceArnError(null);
+                  setResourceArnMessage(null);
+                }}
+                placeholder="arn:aws:s3:::mon-bucket/*"
+              />
+            </label>
+
+            <button type="button" onClick={applyResourceArn}>
+              Appliquer l'ARN
+            </button>
+
+            {resourceArnError ? <p className="error">{resourceArnError}</p> : null}
+            {resourceArnMessage ? (
+              <p className="success-message">{resourceArnMessage}</p>
+            ) : null}
+          </section>
+        ) : null}
 
         <section className="card history-card">
           <div className="card-header">

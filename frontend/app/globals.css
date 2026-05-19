@@ -385,6 +385,30 @@ button:disabled {
   gap: 16px;
 }
 
+.resource-warning-card {
+  display: grid;
+  gap: 16px;
+  border-color: #f6c86f;
+  background: linear-gradient(180deg, #fffdf7 0%, #ffffff 100%);
+}
+
+.resource-warning-card .muted {
+  border-color: #f6d891;
+  background: #fff8e6;
+  color: #7a4d00;
+}
+
+.resource-warning-card button {
+  width: fit-content;
+  background: linear-gradient(180deg, #9a6500 0%, #7a4d00 100%);
+  box-shadow: 0 10px 22px rgba(122, 77, 0, 0.16);
+}
+
+.resource-warning-card button:hover {
+  background: linear-gradient(180deg, #875800 0%, #633f00 100%);
+  box-shadow: 0 12px 26px rgba(122, 77, 0, 0.2);
+}
+
 .history-card p {
   margin: 0;
   color: #4b5870;
@@ -993,6 +1017,10 @@ button:disabled {
   }
 
   .ai-button {
+    width: 100%;
+  }
+
+  .resource-warning-card button {
     width: 100%;
   }
 
