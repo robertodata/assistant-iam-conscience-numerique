@@ -9,7 +9,7 @@ SERVICE_KEYWORDS = {
     "dynamodb": ["dynamodb", "table"],
     "lambda": ["lambda"],
     "ec2": ["ec2", "instance"],
-    "ecr": ["ecr", "image docker", "registry"],
+    "ecr": ["ecr", "docker", "image", "image docker", "registry"],
     "cloudwatch": ["cloudwatch", "logs", "metriques", "métriques", "metrics"],
     "billing": ["facturation", "cout", "couts", "coût", "coûts", "billing"],
 }
@@ -18,7 +18,8 @@ SERVICE_KEYWORDS = {
 INTENT_KEYWORDS = {
     "read": ["lire", "lise", "lit", "consulter", "read"],
     "write": ["ecrire", "écrire", "creer", "créer", "modifier", "upload"],
-    "push": ["push", "pousser"],
+    "push": ["push", "pousse", "pousser"],
+    "pull": ["pull", "telecharger image", "télécharger image", "recuperer image", "récupérer image"],
     "delete": ["supprimer", "delete"],
     "invoke": ["invoquer"],
     "start_stop": ["demarrer", "démarrer", "arreter", "arrêter"],
@@ -46,6 +47,14 @@ def detect_intents(text: str, services: list[str]) -> list[str]:
         if any(keyword in text for keyword in keywords):
             detected_intents.append(intent)
 
+    if (
+        "ecr" in services
+        and "pull" not in detected_intents
+        and "push" not in detected_intents
+        and any(keyword in text for keyword in ["docker", "image", "registry"])
+    ):
+        detected_intents.append("push")
+
     if "billing" in services and "read" not in detected_intents:
         detected_intents.append("read")
 
@@ -62,7 +71,7 @@ def get_risk_level(intents: list[str], actions: list[str]) -> str:
     if any("Delete" in action for action in actions):
         return "medium"
 
-    if any(intent in ["write", "push", "start_stop", "logs"] for intent in intents):
+    if any(intent in ["write", "push", "pull", "start_stop", "logs"] for intent in intents):
         return "medium"
 
     return "low"

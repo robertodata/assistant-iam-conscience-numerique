@@ -95,6 +95,63 @@ def test_iam_analyze_detects_ecr_push_request():
     assert data["risk_level"] == "medium"
 
 
+def test_iam_analyze_detects_ecr_push_without_explicit_service():
+    response = client.post(
+        "/iam/analyze",
+        json={"request": "Je veux pousser une image Docker"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["services"] == ["ecr"]
+    assert data["intents"] == ["push"]
+    assert data["actions"] == [
+        "ecr:GetAuthorizationToken",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload",
+        "ecr:PutImage",
+    ]
+
+
+def test_iam_analyze_detects_ec2_push_to_ecr():
+    response = client.post(
+        "/iam/analyze",
+        json={"request": "Une EC2 doit push sur ECR"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["services"] == ["ec2", "ecr"]
+    assert data["intents"] == ["push"]
+    assert data["actions"] == [
+        "ecr:GetAuthorizationToken",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload",
+        "ecr:PutImage",
+    ]
+
+
+def test_iam_analyze_detects_ecr_pull_without_explicit_service():
+    response = client.post(
+        "/iam/analyze",
+        json={"request": "Je veux pull une image"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["services"] == ["ecr"]
+    assert data["intents"] == ["pull"]
+    assert data["actions"] == [
+        "ecr:GetAuthorizationToken",
+        "ecr:BatchGetImage",
+        "ecr:GetDownloadUrlForLayer",
+    ]
+
+
 def test_iam_analyze_detects_billing_read_request():
     response = client.post(
         "/iam/analyze",
