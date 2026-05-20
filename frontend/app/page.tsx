@@ -1104,71 +1104,26 @@ export default function Home() {
     <main className="page">
       <div className="page-shell">
         <section className="card intro-card">
-          <p className="eyebrow">Projet IAM</p>
           <h1>Assistant IAM Intelligent</h1>
           <p>
-            Génère un rôle IAM pédagogique avec une trust policy, une permission
-            policy et un score de sécurité simple.
+            Décrivez votre besoin AWS en langage naturel. L'assistant identifie
+            les services, propose les permissions IAM adaptées et génère une
+            policy plus sûre.
           </p>
-        </section>
-
-        <section className="card ai-assistant-card">
-          <div className="card-header">
-            <div>
-              <p className="eyebrow">OpenAI</p>
-              <h2>Assistant IA IAM</h2>
-            </div>
-            <span className="muted">Explication</span>
-          </div>
-
-          <p className="helper-text">
-            L'assistant IA utilise OpenAI pour expliquer les concepts IAM.
-          </p>
-
-          <label className="field">
-            <span>Question IAM</span>
-            <textarea
-              value={aiPrompt}
-              onChange={(event) => {
-                setAiPrompt(event.target.value);
-                setAiError(null);
-              }}
-              placeholder="Pose une question IAM..."
-              rows={5}
-            />
-          </label>
-
-          <button
-            className="ai-button"
-            type="button"
-            onClick={askIamAssistant}
-            disabled={isAskingAi}
-          >
-            {isAskingAi ? "Réponse en cours..." : "Demander à l'IA"}
-          </button>
-
-          {aiError ? <p className="error">{aiError}</p> : null}
-
-          {aiResponse ? (
-            <div className="ai-output">
-              <span>Réponse IA</span>
-              <p>{aiResponse}</p>
-            </div>
-          ) : null}
         </section>
 
         <section className="card iam-smart-analysis-card">
           <div className="card-header">
             <div>
-              <p className="eyebrow">Catalogue AWS</p>
               <h2>Analyse IAM intelligente</h2>
             </div>
-            <span className="muted">Analyse déterministe</span>
+            <span className="muted">Permissions suggérées</span>
           </div>
 
           <p className="helper-text">
-            Cette analyse utilise le catalogue AWS local pour proposer des
-            actions IAM probables, sans appeler OpenAI.
+            Saisissez un besoin métier : l'assistant propose les permissions,
+            les risques, les recommandations et l'ARN de ressource quand il le
+            détecte.
           </p>
 
           <label className="field">
@@ -1340,13 +1295,57 @@ export default function Home() {
           ) : null}
         </section>
 
+        <section className="card ai-assistant-card">
+          <div className="card-header">
+            <div>
+              <h2>Explication pédagogique</h2>
+            </div>
+            <span className="muted">Assistant intelligent</span>
+          </div>
+
+          <p className="helper-text">
+            Posez une question pour obtenir une explication claire sur une
+            permission, une policy ou un concept IAM.
+          </p>
+
+          <label className="field">
+            <span>Question IAM</span>
+            <textarea
+              value={aiPrompt}
+              onChange={(event) => {
+                setAiPrompt(event.target.value);
+                setAiError(null);
+              }}
+              placeholder="Pose une question IAM..."
+              rows={5}
+            />
+          </label>
+
+          <button
+            className="ai-button"
+            type="button"
+            onClick={askIamAssistant}
+            disabled={isAskingAi}
+          >
+            {isAskingAi ? "Réponse en cours..." : "Demander à l'assistant"}
+          </button>
+
+          {aiError ? <p className="error">{aiError}</p> : null}
+
+          {aiResponse ? (
+            <div className="ai-output">
+              <span>Réponse pédagogique</span>
+              <p>{aiResponse}</p>
+            </div>
+          ) : null}
+        </section>
+
         <section className="card parser-card">
           <div className="card-header">
             <div>
-              <p className="eyebrow">Interpréteur</p>
-              <h2>Analyser une demande naturelle</h2>
+              <h2>Analyse guidée</h2>
             </div>
-            <span className="muted">Règles simples</span>
+            <span className="muted">Workflow assisté</span>
           </div>
 
           <p className="helper-text">
@@ -1408,7 +1407,6 @@ export default function Home() {
           <section className="card request-analysis-card">
             <div className="card-header">
               <div>
-                <p className="eyebrow">Analyse NLP</p>
                 <h2>Analyse de la demande</h2>
               </div>
               <span className="muted">Avant génération</span>
@@ -1490,10 +1488,9 @@ export default function Home() {
         <section className="card generation-card">
           <div className="card-header">
             <div>
-              <p className="eyebrow">Génération</p>
-              <h2>Configurer le rôle IAM</h2>
+              <h2>Mode avancé</h2>
             </div>
-            <span className="muted">Sélecteurs dynamiques</span>
+            <span className="muted">Configuration manuelle</span>
           </div>
 
           <p className="helper-text">
@@ -1589,7 +1586,6 @@ export default function Home() {
           <section className="card resource-warning-card">
             <div className="card-header">
               <div>
-                <p className="eyebrow">Least Privilege</p>
                 <h2>Ressource AWS manquante</h2>
               </div>
               <span className="muted">ARN recommandé</span>
@@ -1628,8 +1624,7 @@ export default function Home() {
         <section className="card history-card">
           <div className="card-header">
             <div>
-              <p className="eyebrow">Mémoire locale</p>
-              <h2>Historique récent</h2>
+              <h2>Historique des générations</h2>
             </div>
             {generationHistory.length > 0 ? (
               <button type="button" onClick={clearHistory}>
@@ -1675,7 +1670,6 @@ export default function Home() {
             <section className="card final-preview-card">
               <div className="card-header">
                 <div>
-                  <p className="eyebrow">Résumé</p>
                   <h2>Aperçu final</h2>
                 </div>
                 <div className="final-preview-badges">
@@ -1753,7 +1747,6 @@ export default function Home() {
             <section className="card result-card">
               <div className="card-header">
                 <div>
-                  <p className="eyebrow">Résultat</p>
                   <h2>Rôle IAM généré</h2>
                 </div>
                 <div className="policy-actions">
@@ -1817,7 +1810,6 @@ export default function Home() {
               <section className="card template-card">
                 <div className="card-header">
                   <div>
-                    <p className="eyebrow">Infrastructure as code</p>
                     <h2>Template CloudFormation</h2>
                   </div>
                   <div className="policy-actions">
@@ -1841,7 +1833,6 @@ export default function Home() {
               <section className="card template-card">
                 <div className="card-header">
                   <div>
-                    <p className="eyebrow">Infrastructure as code</p>
                     <h2>Template Terraform</h2>
                   </div>
                   <div className="policy-actions">
@@ -1864,7 +1855,6 @@ export default function Home() {
             <section className="card export-help-card">
               <div className="card-header">
                 <div>
-                  <p className="eyebrow">Aide</p>
                   <h2>Quel fichier utiliser ?</h2>
                 </div>
                 <span className="muted">Exports</span>
@@ -1935,7 +1925,6 @@ export default function Home() {
               <section className="card security-score">
                 <div className="card-header">
                   <div>
-                    <p className="eyebrow">Analyse</p>
                     <h2>Score sécurité</h2>
                   </div>
                   <span className={getSecurityBadgeClass(securityResult.level)}>
@@ -2018,8 +2007,11 @@ export default function Home() {
         ) : null}
 
         <section className="card next-step">
-          <p className="eyebrow">Roadmap</p>
-          <h2>Prochaine évolution : validation avancée des permissions IAM</h2>
+          <h2>Évolutions à venir</h2>
+          <p>
+            Validation avancée des permissions, simulation IAM et analyse de
+            policies existantes.
+          </p>
         </section>
       </div>
     </main>
