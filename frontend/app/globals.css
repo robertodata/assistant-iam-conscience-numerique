@@ -312,6 +312,95 @@ button:disabled {
   overflow-wrap: anywhere;
 }
 
+.interactive-action-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.interactive-action-card {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  border: 1px solid #d8deea;
+  border-radius: 8px;
+  padding: 14px;
+  background: #ffffff;
+  cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease,
+    background 160ms ease;
+}
+
+.interactive-action-card:hover {
+  border-color: #9eb3ef;
+  box-shadow: 0 12px 26px rgba(25, 37, 63, 0.08);
+  transform: translateY(-1px);
+}
+
+.interactive-action-selected {
+  border-color: #3158d4;
+  background: #f5f8ff;
+  box-shadow: inset 0 0 0 1px rgba(49, 88, 212, 0.22);
+}
+
+.interactive-action-card input {
+  width: 18px;
+  min-height: 18px;
+  margin: 3px 0 0;
+  accent-color: #3158d4;
+}
+
+.interactive-action-card span {
+  display: grid;
+  gap: 5px;
+}
+
+.interactive-action-card strong {
+  color: #172033;
+  overflow-wrap: anywhere;
+}
+
+.interactive-action-card small {
+  color: #4b5870;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.risk-pill {
+  border-radius: 999px;
+  padding: 5px 9px;
+  font-size: 0.76rem;
+  font-style: normal;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.risk-low {
+  background: #e8f7ed;
+  color: #166534;
+}
+
+.risk-medium {
+  background: #fff4d8;
+  color: #8a5a00;
+}
+
+.risk-high {
+  background: #ffe7e7;
+  color: #a11b1b;
+}
+
+.policy-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .ai-assistant-card {
   display: grid;
   gap: 16px;
@@ -1058,6 +1147,10 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
+  .policy-section-header {
+    flex-direction: column;
+  }
+
   .detected-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1123,6 +1216,15 @@ button:disabled {
 
   .iam-smart-analysis-card button {
     width: 100%;
+  }
+
+  .interactive-action-card {
+    grid-template-columns: 22px minmax(0, 1fr);
+  }
+
+  .risk-pill {
+    grid-column: 2;
+    width: fit-content;
   }
 
   .resource-warning-card button {

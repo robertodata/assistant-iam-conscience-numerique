@@ -25,6 +25,140 @@ const userModes = [
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
+const IAM_ACTION_DETAILS: Record<
+  string,
+  { description: string; risk: "low" | "medium" | "high" }
+> = {
+  "s3:GetObject": {
+    description: "Permet de lire des objets dans un bucket S3.",
+    risk: "low",
+  },
+  "s3:ListBucket": {
+    description: "Permet de lister le contenu d'un bucket S3.",
+    risk: "low",
+  },
+  "s3:PutObject": {
+    description: "Permet d'ajouter ou modifier des objets dans un bucket S3.",
+    risk: "medium",
+  },
+  "s3:DeleteObject": {
+    description: "Permet de supprimer des objets dans un bucket S3.",
+    risk: "high",
+  },
+  "dynamodb:GetItem": {
+    description: "Permet de lire un élément précis dans une table DynamoDB.",
+    risk: "low",
+  },
+  "dynamodb:Query": {
+    description: "Permet de rechercher des éléments dans une table DynamoDB.",
+    risk: "low",
+  },
+  "dynamodb:Scan": {
+    description: "Permet de parcourir une table DynamoDB plus largement.",
+    risk: "medium",
+  },
+  "dynamodb:PutItem": {
+    description: "Permet d'écrire un élément dans une table DynamoDB.",
+    risk: "medium",
+  },
+  "dynamodb:UpdateItem": {
+    description: "Permet de modifier un élément dans une table DynamoDB.",
+    risk: "medium",
+  },
+  "dynamodb:DeleteItem": {
+    description: "Permet de supprimer un élément dans une table DynamoDB.",
+    risk: "high",
+  },
+  "lambda:InvokeFunction": {
+    description: "Permet d'invoquer une fonction Lambda.",
+    risk: "medium",
+  },
+  "lambda:CreateFunction": {
+    description: "Permet de créer une fonction Lambda.",
+    risk: "high",
+  },
+  "lambda:UpdateFunctionCode": {
+    description: "Permet de modifier le code d'une fonction Lambda.",
+    risk: "high",
+  },
+  "ec2:DescribeInstances": {
+    description: "Permet de consulter les informations des instances EC2.",
+    risk: "low",
+  },
+  "ec2:StartInstances": {
+    description: "Permet de démarrer des instances EC2.",
+    risk: "medium",
+  },
+  "ec2:StopInstances": {
+    description: "Permet d'arrêter des instances EC2.",
+    risk: "medium",
+  },
+  "ecr:GetAuthorizationToken": {
+    description: "Permet de s'authentifier auprès d'Amazon ECR.",
+    risk: "medium",
+  },
+  "ecr:BatchCheckLayerAvailability": {
+    description: "Permet de vérifier les couches déjà présentes dans ECR.",
+    risk: "low",
+  },
+  "ecr:InitiateLayerUpload": {
+    description: "Permet de démarrer l'upload d'une couche d'image Docker.",
+    risk: "medium",
+  },
+  "ecr:UploadLayerPart": {
+    description: "Permet d'envoyer une partie d'une image Docker vers ECR.",
+    risk: "medium",
+  },
+  "ecr:CompleteLayerUpload": {
+    description: "Permet de finaliser l'upload d'une couche d'image Docker.",
+    risk: "medium",
+  },
+  "ecr:PutImage": {
+    description: "Permet de pousser une image Docker dans un repository ECR.",
+    risk: "medium",
+  },
+  "ecr:BatchGetImage": {
+    description: "Permet de récupérer les métadonnées d'une image ECR.",
+    risk: "low",
+  },
+  "ecr:GetDownloadUrlForLayer": {
+    description: "Permet de télécharger les couches d'une image ECR.",
+    risk: "low",
+  },
+  "cloudwatch:GetMetricData": {
+    description: "Permet de lire des métriques CloudWatch.",
+    risk: "low",
+  },
+  "cloudwatch:ListMetrics": {
+    description: "Permet de lister les métriques CloudWatch disponibles.",
+    risk: "low",
+  },
+  "logs:CreateLogGroup": {
+    description: "Permet de créer un groupe de logs CloudWatch.",
+    risk: "medium",
+  },
+  "logs:CreateLogStream": {
+    description: "Permet de créer un flux de logs CloudWatch.",
+    risk: "medium",
+  },
+  "logs:PutLogEvents": {
+    description: "Permet d'écrire des événements dans CloudWatch Logs.",
+    risk: "medium",
+  },
+  "aws-portal:ViewBilling": {
+    description: "Permet de consulter les informations de facturation AWS.",
+    risk: "medium",
+  },
+  "ce:GetCostAndUsage": {
+    description: "Permet de consulter les coûts et usages AWS.",
+    risk: "medium",
+  },
+  "aws-portal:ModifyBilling": {
+    description: "Permet de modifier des informations de facturation AWS.",
+    risk: "high",
+  },
+};
+
 type PermissionExplanation = {
   permission: string;
   description: string;
@@ -156,6 +290,54 @@ function getAnalysisRiskBadgeClass(riskLevel: IamAnalysisResult["risk_level"]) {
   }
 
   return "badge badge-good";
+}
+
+function getActionDescription(action: string) {
+  return (
+    IAM_ACTION_DETAILS[action]?.description ??
+    "Permission IAM proposée par le catalogue AWS."
+  );
+}
+
+function getActionRisk(action: string) {
+  return IAM_ACTION_DETAILS[action]?.risk ?? "medium";
+}
+
+function getActionRiskLabel(risk: "low" | "medium" | "high") {
+  if (risk === "high") {
+    return "high";
+  }
+
+  if (risk === "medium") {
+    return "medium";
+  }
+
+  return "low";
+}
+
+function buildInteractivePolicy(actions: string[]) {
+  return {
+    Version: "2012-10-17",
+    Statement: [
+      {
+        Effect: "Allow",
+        Action: actions,
+        Resource: "*",
+      },
+    ],
+  };
+}
+
+function buildTerraformFromActions(actions: string[]) {
+  const policyJson = JSON.stringify(buildInteractivePolicy(actions), null, 2);
+
+  return `resource "aws_iam_policy" "generated_policy" {
+  name        = "assistant-iam-generated-policy"
+  description = "Policy IAM générée depuis l'analyse interactive"
+
+  policy = jsonencode(${policyJson})
+}
+`;
 }
 
 function extractResourceName(text: string) {
@@ -380,6 +562,10 @@ export default function Home() {
     useState<IamAnalysisResult | null>(null);
   const [iamAnalysisError, setIamAnalysisError] = useState<string | null>(null);
   const [isAnalyzingIam, setIsAnalyzingIam] = useState(false);
+  const [selectedIamActions, setSelectedIamActions] = useState<string[]>([]);
+  const [interactivePolicyMessage, setInteractivePolicyMessage] = useState<
+    string | null
+  >(null);
 
   async function generatePolicyWithPayload(payload: GeneratePolicyPayload) {
     setIsGenerating(true);
@@ -607,6 +793,8 @@ export default function Home() {
 
       const data = await response.json();
       setIamAnalysisResult(data);
+      setSelectedIamActions(data.actions ?? []);
+      setInteractivePolicyMessage(null);
     } catch (currentError) {
       setIamAnalysisError(
         currentError instanceof Error
@@ -616,6 +804,31 @@ export default function Home() {
     } finally {
       setIsAnalyzingIam(false);
     }
+  }
+
+  function toggleIamAction(action: string) {
+    setSelectedIamActions((currentActions) =>
+      currentActions.includes(action)
+        ? currentActions.filter((currentAction) => currentAction !== action)
+        : [...currentActions, action],
+    );
+    setInteractivePolicyMessage(null);
+  }
+
+  async function copyInteractivePolicyJson() {
+    await navigator.clipboard.writeText(
+      JSON.stringify(buildInteractivePolicy(selectedIamActions), null, 2),
+    );
+    setInteractivePolicyMessage("Policy JSON copiée.");
+  }
+
+  function exportInteractiveTerraform() {
+    downloadGeneratedFile(
+      buildTerraformFromActions(selectedIamActions),
+      "interactive-iam-policy.tf",
+      "text/plain",
+    );
+    setInteractivePolicyMessage("Export Terraform lancé.");
   }
 
 
@@ -862,6 +1075,7 @@ export default function Home() {
   const isPolicyResourceWildcard = hasWildcardResource(policyResult);
   const shouldShowResourceGuidance =
     isNlpResourceMissing || isPolicyResourceWildcard;
+  const interactivePolicy = buildInteractivePolicy(selectedIamActions);
 
   return (
     <main className="page">
@@ -1010,15 +1224,65 @@ export default function Home() {
               <div className="analysis-list-section">
                 <h3>Actions IAM proposées</h3>
                 {iamAnalysisResult.actions.length > 0 ? (
-                  <ul className="analysis-list">
+                  <div className="interactive-action-grid">
                     {iamAnalysisResult.actions.map((action) => (
-                      <li key={action}>{action}</li>
+                      <label
+                        className={`interactive-action-card ${
+                          selectedIamActions.includes(action)
+                            ? "interactive-action-selected"
+                            : ""
+                        }`}
+                        key={action}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedIamActions.includes(action)}
+                          onChange={() => toggleIamAction(action)}
+                        />
+                        <span>
+                          <strong>{action}</strong>
+                          <small>{getActionDescription(action)}</small>
+                        </span>
+                        <em className={`risk-pill risk-${getActionRisk(action)}`}>
+                          {getActionRiskLabel(getActionRisk(action))}
+                        </em>
+                      </label>
                     ))}
-                  </ul>
+                  </div>
                 ) : (
                   <p className="empty-state">Aucune action IAM proposée.</p>
                 )}
               </div>
+
+              {iamAnalysisResult.actions.length > 0 ? (
+                <div className="analysis-list-section">
+                  <div className="policy-section-header">
+                    <h3>Policy JSON générée</h3>
+                    <div className="policy-actions">
+                      <button
+                        type="button"
+                        onClick={copyInteractivePolicyJson}
+                        disabled={selectedIamActions.length === 0}
+                      >
+                        Copier JSON
+                      </button>
+                      <button
+                        type="button"
+                        onClick={exportInteractiveTerraform}
+                        disabled={selectedIamActions.length === 0}
+                      >
+                        Exporter Terraform
+                      </button>
+                    </div>
+                  </div>
+                  {interactivePolicyMessage ? (
+                    <p className="success-message">{interactivePolicyMessage}</p>
+                  ) : null}
+                  <pre className="policy-output">
+                    {JSON.stringify(interactivePolicy, null, 2)}
+                  </pre>
+                </div>
+              ) : null}
 
               <div className="analysis-list-section">
                 <h3>Recommandations</h3>
