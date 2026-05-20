@@ -224,6 +224,8 @@ type IamAnalysisResult = {
   services: string[];
   intents: string[];
   actions: string[];
+  resource_name: string | null;
+  resource_arn: string | string[] | null;
   risk_level: "low" | "medium" | "high";
   recommendations: string[];
 };
@@ -315,21 +317,21 @@ function getActionRiskLabel(risk: "low" | "medium" | "high") {
   return "low";
 }
 
-function buildInteractivePolicy(actions: string[]) {
+function buildInteractivePolicy(actions: string[], resource: string | string[] = "*") {
   return {
     Version: "2012-10-17",
     Statement: [
       {
         Effect: "Allow",
         Action: actions,
-        Resource: "*",
+        Resource: resource,
       },
     ],
   };
 }
 
-function buildTerraformFromActions(actions: string[]) {
-  const policyJson = JSON.stringify(buildInteractivePolicy(actions), null, 2);
+function buildTerraformFromActions(actions: string[], resource: string | string[]) {
+  const policyJson = JSON.stringify(buildInteractivePolicy(actions, resource), null, 2);
 
   return `resource "aws_iam_policy" "generated_policy" {
   name        = "assistant-iam-generated-policy"
@@ -817,18 +819,35 @@ export default function Home() {
 
   async function copyInteractivePolicyJson() {
     await navigator.clipboard.writeText(
-      JSON.stringify(buildInteractivePolicy(selectedIamActions), null, 2),
+      JSON.stringify(
+        buildInteractivePolicy(selectedIamActions, generatedArnValue),
+        null,
+        2,
+      ),
     );
     setInteractivePolicyMessage("Policy JSON copiée.");
   }
 
   function exportInteractiveTerraform() {
     downloadGeneratedFile(
-      buildTerraformFromActions(selectedIamActions),
+      buildTerraformFromActions(selectedIamActions, generatedArnValue),
       "interactive-iam-policy.tf",
       "text/plain",
     );
     setInteractivePolicyMessage("Export Terraform lancé.");
+  }
+
+  async function copyGeneratedArn() {
+    if (!iamAnalysisResult?.resource_arn) {
+      return;
+    }
+
+    await navigator.clipboard.writeText(
+      Array.isArray(iamAnalysisResult.resource_arn)
+        ? iamAnalysisResult.resource_arn.join("\n")
+        : iamAnalysisResult.resource_arn,
+    );
+    setInteractivePolicyMessage("ARN copié.");
   }
 
 
@@ -1075,7 +1094,11 @@ export default function Home() {
   const isPolicyResourceWildcard = hasWildcardResource(policyResult);
   const shouldShowResourceGuidance =
     isNlpResourceMissing || isPolicyResourceWildcard;
-  const interactivePolicy = buildInteractivePolicy(selectedIamActions);
+  const generatedArnValue = iamAnalysisResult?.resource_arn ?? "*";
+  const interactivePolicy = buildInteractivePolicy(
+    selectedIamActions,
+    generatedArnValue,
+  );
 
   return (
     <main className="page">
@@ -1220,6 +1243,27 @@ export default function Home() {
                   </div>
                 </article>
               </div>
+
+              {iamAnalysisResult.resource_arn ? (
+                <div className="analysis-list-section generated-arn-section">
+                  <div className="policy-section-header">
+                    <div>
+                      <h3>ARN généré automatiquement</h3>
+                      {iamAnalysisResult.resource_name ? (
+                        <p>Ressource détectée : {iamAnalysisResult.resource_name}</p>
+                      ) : null}
+                    </div>
+                    <button type="button" onClick={copyGeneratedArn}>
+                      Copier ARN
+                    </button>
+                  </div>
+                  <pre className="policy-output">
+                    {Array.isArray(iamAnalysisResult.resource_arn)
+                      ? iamAnalysisResult.resource_arn.join("\n")
+                      : iamAnalysisResult.resource_arn}
+                  </pre>
+                </div>
+              ) : null}
 
               <div className="analysis-list-section">
                 <h3>Actions IAM proposées</h3>

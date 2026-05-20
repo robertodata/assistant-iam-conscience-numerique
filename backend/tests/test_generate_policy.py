@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 import pytest
 
 from app import ai_provider
+from app.arn_generator import generate_arn
 from app.aws_service_catalog import get_actions_for_service
 from app.iam_validator import validate_iam_policy
 from app.main import app
@@ -55,6 +56,25 @@ def test_get_actions_for_service_returns_empty_list_for_unknown_values():
     assert get_actions_for_service("s3", "unknown") == []
 
 
+def test_generate_arn_supports_common_aws_services():
+    assert generate_arn("s3", "photos-prod") == [
+        "arn:aws:s3:::photos-prod",
+        "arn:aws:s3:::photos-prod/*",
+    ]
+    assert (
+        generate_arn("dynamodb", "users")
+        == "arn:aws:dynamodb:eu-west-3:123456789012:table/users"
+    )
+    assert (
+        generate_arn("ecr", "backend-api")
+        == "arn:aws:ecr:eu-west-3:123456789012:repository/backend-api"
+    )
+    assert (
+        generate_arn("lambda", "process-order")
+        == "arn:aws:lambda:eu-west-3:123456789012:function:process-order"
+    )
+
+
 def test_iam_analyze_detects_s3_read_request():
     response = client.post(
         "/iam/analyze",
@@ -67,11 +87,81 @@ def test_iam_analyze_detects_s3_read_request():
         "services": ["s3", "lambda"],
         "intents": ["read"],
         "actions": ["s3:GetObject", "s3:ListBucket"],
+        "resource_name": None,
+        "resource_arn": None,
         "risk_level": "low",
         "recommendations": [
             "Précisez un ARN de ressource pour éviter Resource *.",
         ],
     }
+
+
+def test_iam_analyze_generates_s3_resource_arn():
+    response = client.post(
+        "/iam/analyze",
+        json={"request": "Je veux lire le bucket photos-prod"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["services"] == ["s3"]
+    assert data["resource_name"] == "photos-prod"
+    assert data["resource_arn"] == [
+        "arn:aws:s3:::photos-prod",
+        "arn:aws:s3:::photos-prod/*",
+    ]
+    assert data["risk_level"] == "low"
+    assert "Least privilege appliqué automatiquement." in data["recommendations"]
+
+
+def test_iam_analyze_generates_dynamodb_resource_arn():
+    response = client.post(
+        "/iam/analyze",
+        json={"request": "Consulter la table users dans DynamoDB"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["services"] == ["dynamodb"]
+    assert data["resource_name"] == "users"
+    assert (
+        data["resource_arn"]
+        == "arn:aws:dynamodb:eu-west-3:123456789012:table/users"
+    )
+
+
+def test_iam_analyze_generates_ecr_resource_arn_and_reduces_risk():
+    response = client.post(
+        "/iam/analyze",
+        json={"request": "Je veux pousser une image Docker dans le repository backend-api"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["services"] == ["ecr"]
+    assert data["resource_name"] == "backend-api"
+    assert (
+        data["resource_arn"]
+        == "arn:aws:ecr:eu-west-3:123456789012:repository/backend-api"
+    )
+    assert data["risk_level"] == "low"
+    assert "Least privilege appliqué automatiquement." in data["recommendations"]
+
+
+def test_iam_analyze_generates_lambda_resource_arn():
+    response = client.post(
+        "/iam/analyze",
+        json={"request": "Invoquer la lambda function process-order"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["services"] == ["lambda"]
+    assert data["resource_name"] == "process-order"
+    assert (
+        data["resource_arn"]
+        == "arn:aws:lambda:eu-west-3:123456789012:function:process-order"
+    )
 
 
 def test_iam_analyze_detects_ecr_push_request():

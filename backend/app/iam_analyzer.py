@@ -1,6 +1,9 @@
 # Ce module analyse une phrase utilisateur avec des regles simples.
 # Il n'appelle pas OpenAI : il s'appuie uniquement sur le catalogue AWS local.
 
+import re
+
+from app.arn_generator import generate_arn
 from app.aws_service_catalog import get_actions_for_service
 
 
@@ -64,6 +67,29 @@ def detect_intents(text: str, services: list[str]) -> list[str]:
     return detected_intents
 
 
+def detect_resource(text: str, services: list[str]) -> tuple[str | None, str | None]:
+    resource_patterns = [
+        ("s3", r"\bbucket\s+([a-z0-9][a-z0-9._-]*)"),
+        ("dynamodb", r"\btable\s+([a-z0-9][a-z0-9._-]*)"),
+        ("ecr", r"\brepository\s+([a-z0-9][a-z0-9._/-]*)"),
+        ("lambda", r"\b(?:fonction|function)\s+([a-z0-9][a-z0-9._-]*)"),
+        ("cloudwatch", r"\b(?:log group|log-group|logs)\s+([a-z0-9][a-z0-9._/-]*)"),
+        ("ec2", r"\binstance\s+([a-z0-9][a-z0-9._-]*)"),
+    ]
+
+    for service, pattern in resource_patterns:
+        match = re.search(pattern, text)
+        if match and service in services:
+            resource_name = match.group(1)
+
+            if resource_name in ["s3", "dynamodb", "ecr", "ec2", "lambda"]:
+                continue
+
+            return service, resource_name
+
+    return None, None
+
+
 def get_risk_level(intents: list[str], actions: list[str]) -> str:
     if any(intent in ["delete", "manage"] for intent in intents):
         return "medium"
@@ -77,14 +103,31 @@ def get_risk_level(intents: list[str], actions: list[str]) -> str:
     return "low"
 
 
+def reduce_risk_for_resource_arn(risk_level: str, resource_arn: str | list[str] | None) -> str:
+    if resource_arn is None:
+        return risk_level
+
+    if risk_level == "high":
+        return "medium"
+
+    if risk_level == "medium":
+        return "low"
+
+    return risk_level
+
+
 def build_recommendations(
     services: list[str],
     intents: list[str],
     actions: list[str],
+    resource_arn: str | list[str] | None,
 ) -> list[str]:
-    recommendations = [
-        "Précisez un ARN de ressource pour éviter Resource *.",
-    ]
+    recommendations = []
+
+    if resource_arn:
+        recommendations.append("Least privilege appliqué automatiquement.")
+    else:
+        recommendations.append("Précisez un ARN de ressource pour éviter Resource *.")
 
     if not services:
         recommendations.append("Précisez le service AWS concerné.")
@@ -108,22 +151,35 @@ def analyze_iam_request(user_request: str) -> dict:
     services = detect_services(normalized_request)
     intents = detect_intents(normalized_request, services)
     actions = []
+    resource_service, resource_name = detect_resource(normalized_request, services)
+    resource_arn = (
+        generate_arn(resource_service, resource_name)
+        if resource_service and resource_name
+        else None
+    )
 
     for service in services:
         for intent in intents:
             actions.extend(get_actions_for_service(service, intent))
 
     unique_actions = list(dict.fromkeys(actions))
+    risk_level = reduce_risk_for_resource_arn(
+        get_risk_level(intents, unique_actions),
+        resource_arn,
+    )
 
     return {
         "request": user_request,
         "services": services,
         "intents": intents,
         "actions": unique_actions,
-        "risk_level": get_risk_level(intents, unique_actions),
+        "resource_name": resource_name,
+        "resource_arn": resource_arn,
+        "risk_level": risk_level,
         "recommendations": build_recommendations(
             services,
             intents,
             unique_actions,
+            resource_arn,
         ),
     }

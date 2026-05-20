@@ -401,6 +401,23 @@ button:disabled {
   gap: 12px;
 }
 
+.generated-arn-section p {
+  margin: 6px 0 0;
+  color: #4b5870;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.generated-arn-section button {
+  width: fit-content;
+  background: linear-gradient(180deg, #167044 0%, #125c38 100%);
+  box-shadow: 0 10px 22px rgba(18, 92, 56, 0.16);
+}
+
+.generated-arn-section button:hover {
+  background: linear-gradient(180deg, #125c38 0%, #0f472d 100%);
+}
+
 .ai-assistant-card {
   display: grid;
   gap: 16px;
