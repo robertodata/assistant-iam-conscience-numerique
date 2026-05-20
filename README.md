@@ -1,126 +1,156 @@
-# assistant-iam-conscience-numerique
+# Assistant IAM Conscience Numérique
 
-## Vision du projet
+Assistant IAM intelligent pour AWS, basé sur un moteur NLP pédagogique, une
+analyse de sécurité IAM et une première intégration OpenAI.
 
-`assistant-iam-conscience-numerique` est un MVP d'assistant IAM pedagogique.
-Son objectif est d'aider a comprendre comment construire un role AWS IAM plus
-sur, en partant d'un besoin simple : un service AWS, une action, un type de role
-et une ressource cible.
+Le projet aide à transformer une demande en langage naturel en permissions IAM
+compréhensibles, avec génération d'ARN, recommandations de sécurité et exports
+Infrastructure as Code.
 
-A terme, le projet pourra evoluer vers un assistant intelligent capable de
-recommander des policies IAM securisees. Pour l'instant, il reste volontairement
-simple : aucune IA, aucune connexion AWS et aucun deploiement cloud.
+## Vision
 
-## Fonctionnalites actuelles
+L'objectif est de construire progressivement un assistant SaaS capable d'aider
+un utilisateur à comprendre, générer et sécuriser des permissions AWS IAM.
 
-- Generation d'un role IAM simple pour Lambda ou EC2.
-- Generation d'une trust policy selon le type de role choisi.
-- Generation d'une permission policy pour S3 ou DynamoDB.
-- Support des actions `read` et `write`.
-- Generation d'ARN simples a partir d'un nom de ressource.
-- Warning lorsque `Resource` vaut `"*"`.
-- Explication pedagogique des permissions IAM generees.
-- Analyse de securite IAM avec findings, score et niveau de risque.
-- Export d'un template CloudFormation simple.
-- Export d'un template Terraform simple.
-- Interface Next.js avec selecteurs dynamiques.
-- Copie de la policy JSON, du template CloudFormation et du template Terraform.
-- Tests backend automatises avec `pytest`.
+Le MVP met l'accent sur :
 
-## Objectif pedagogique
+- la pédagogie IAM ;
+- le principe du moindre privilège ;
+- la détection de risques simples ;
+- la génération d'exports réutilisables ;
+- l'intégration progressive de l'IA.
 
-Ce projet sert a comprendre progressivement plusieurs notions importantes :
+## Fonctionnalités
 
-- IAM et les permissions AWS.
-- Le principe du Least Privilege.
-- La difference entre une trust policy et une permission policy.
-- Le role des ARN pour cibler des ressources precises.
-- Les risques lies a `Resource: "*"` ou aux permissions trop larges.
-- Les bases de l'Infrastructure as Code avec CloudFormation et Terraform.
+- Analyse IAM en langage naturel.
+- Détection de services AWS et d'intentions IAM.
+- Génération de permissions IAM proposées.
+- Sélection interactive des permissions.
+- Génération intelligente d'ARN AWS.
+- Application automatique du Least Privilege lorsque la ressource est détectée.
+- Intégration OpenAI pour expliquer des concepts IAM.
+- Génération de policy IAM JSON.
+- Export Terraform.
+- Export CloudFormation.
+- Score de risque IAM.
+- Recommandations de sécurité.
+- Historique local des générations.
+- Tests backend automatisés.
 
-L'application est donc volontairement explicite et lisible, afin de rester utile
-pour un apprentissage pas a pas.
+## Architecture
 
-## Architecture technique
+```text
+Utilisateur
+↓
+Frontend Next.js
+↓
+FastAPI backend
+↓
+Moteur IAM NLP
+↓
+OpenAI
+↓
+Génération IAM
+```
+
+### Frontend
+
+- Next.js
+- React
+- TypeScript
+- CSS global sobre et responsive
+
+Le frontend permet :
+
+- d'analyser une demande IAM ;
+- de sélectionner les actions IAM proposées ;
+- de visualiser une policy JSON ;
+- de copier ou exporter les résultats ;
+- d'interroger l'assistant IA IAM.
+
+### Backend
+
+- FastAPI
+- Python
+- Pytest
+
+Le backend contient :
+
+- un catalogue de services AWS ;
+- un moteur NLP IAM déterministe ;
+- un générateur d'ARN ;
+- un générateur de policies ;
+- un analyseur de sécurité ;
+- une intégration OpenAI contrôlée par variable d'environnement.
+
+### Infrastructure
+
+Le projet est préparé pour une exécution sur :
+
+- AWS EC2 ;
+- Apache en reverse proxy ;
+- HTTPS via Let's Encrypt ;
+- backend FastAPI en service Linux ;
+- frontend Next.js en mode production.
+
+### CI/CD
+
+- GitHub Actions
+- Job backend : installation Python et `pytest`
+- Job frontend : installation Node.js et build Next.js
+- Pas de déploiement automatique pour l'instant
+
+## Structure du projet
 
 ```text
 assistant-iam-conscience-numerique/
 ├── backend/
 │   ├── app/
-│   │   ├── iac_generator.py
+│   │   ├── ai_provider.py
+│   │   ├── arn_generator.py
+│   │   ├── aws_service_catalog.py
+│   │   ├── iam_analyzer.py
 │   │   ├── iam_engine.py
+│   │   ├── iam_rules.py
+│   │   ├── iam_validator.py
+│   │   ├── iac_generator.py
 │   │   ├── main.py
+│   │   ├── nlp_parser.py
 │   │   └── security_analyzer.py
 │   ├── tests/
-│   │   └── test_generate_policy.py
+│   ├── Dockerfile
 │   └── requirements.txt
-├── docs/
-│   └── README.md
 ├── frontend/
 │   ├── app/
 │   │   ├── globals.css
 │   │   ├── layout.tsx
 │   │   └── page.tsx
-│   ├── next-env.d.ts
-│   ├── next.config.mjs
-│   ├── package.json
-│   └── tsconfig.json
+│   ├── Dockerfile
+│   └── package.json
+├── docs/
+├── scripts/
 └── README.md
 ```
 
+## Installation locale
+
 ### Backend
-
-Le backend FastAPI expose l'API principale du projet.
-
-- `main.py` contient l'application FastAPI et les routes.
-- `iam_engine.py` contient la logique IAM.
-- `security_analyzer.py` contient l'analyse de securite.
-- `iac_generator.py` contient la generation CloudFormation et Terraform.
-
-### Frontend
-
-Le frontend Next.js permet de configurer un role IAM depuis une interface simple.
-Il appelle le backend avec `fetch()`, puis affiche la policy, les explications,
-le score de securite et les sorties Infrastructure as Code.
-
-## Technologies utilisees
-
-- Next.js
-- React
-- TypeScript
-- Python
-- FastAPI
-- Pytest
-- CloudFormation
-- Terraform
-
-## Lancer le backend
-
-Depuis la racine du projet :
 
 ```bash
 cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Le backend est disponible sur :
+Vérifier le backend :
 
-```text
-http://127.0.0.1:8000
+```bash
+curl http://127.0.0.1:8000/health
 ```
 
-Endpoint de verification :
-
-```text
-GET http://127.0.0.1:8000/health
-```
-
-## Lancer le frontend
-
-Depuis la racine du projet :
+### Frontend
 
 ```bash
 cd frontend
@@ -128,99 +158,187 @@ npm install
 npm run dev
 ```
 
-Le frontend est disponible sur :
+Le frontend local est disponible sur :
 
 ```text
 http://localhost:3000
 ```
 
-## Lancer les tests
+### Tests backend
 
-Depuis le dossier `backend`, avec l'environnement virtuel active :
+Depuis la racine du projet :
+
+```bash
+PYTHONPATH=backend pytest backend/tests
+```
+
+Ou depuis le dossier `backend` :
 
 ```bash
 pytest
 ```
 
-## Exemple de requete API
+## Variables d'environnement
+
+### Backend
+
+Créer un fichier `.env` côté backend si nécessaire :
+
+```env
+OPENAI_API_KEY=sk-...
+```
+
+Si la clé est absente ou vaut `YOUR_OPENAI_API_KEY`, le backend retourne une
+réponse IA simulée. La clé API ne doit jamais être commitée.
+
+### Frontend
+
+Créer `frontend/.env.local` :
+
+```env
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+```
+
+En production, cette variable peut pointer vers l'API publique :
+
+```env
+NEXT_PUBLIC_API_URL=https://consciencenumerique.com/api
+```
+
+## Endpoints principaux
+
+```text
+GET  /health
+GET  /ai/status
+POST /ai/explain
+GET  /iam/services
+POST /iam/analyze
+POST /parse-request
+POST /generate-policy
+```
+
+Exemple d'analyse IAM :
 
 ```bash
-curl -X POST http://127.0.0.1:8000/generate-policy \
+curl -X POST http://127.0.0.1:8000/iam/analyze \
   -H "Content-Type: application/json" \
   -d '{
-    "service": "s3",
-    "action": "read",
-    "aws_service_type": "lambda",
-    "resource_name": "mon-bucket"
+    "request": "Je veux pousser une image Docker dans le repository backend-api"
   }'
 ```
 
-## Exemple de reponse generee
+Exemple de réponse :
 
 ```json
 {
-  "role_name": "lambda-s3-read-role",
-  "trust_policy": {
-    "Version": "2012-10-17",
-    "Statement": [
-      {
-        "Effect": "Allow",
-        "Principal": {
-          "Service": "lambda.amazonaws.com"
-        },
-        "Action": "sts:AssumeRole"
-      }
-    ]
-  },
-  "policy": {
-    "Version": "2012-10-17",
-    "Statement": [
-      {
-        "Effect": "Allow",
-        "Action": [
-          "s3:GetObject",
-          "s3:ListBucket"
-        ],
-        "Resource": [
-          "arn:aws:s3:::mon-bucket",
-          "arn:aws:s3:::mon-bucket/*"
-        ]
-      }
-    ]
-  },
-  "warnings": [],
-  "explanations": [
-    {
-      "permission": "s3:GetObject",
-      "description": "Permet de lire les objets dans un bucket S3."
-    },
-    {
-      "permission": "s3:ListBucket",
-      "description": "Permet de lister le contenu d'un bucket S3."
-    }
+  "request": "Je veux pousser une image Docker dans le repository backend-api",
+  "services": ["ecr"],
+  "intents": ["push"],
+  "actions": [
+    "ecr:GetAuthorizationToken",
+    "ecr:BatchCheckLayerAvailability",
+    "ecr:InitiateLayerUpload",
+    "ecr:UploadLayerPart",
+    "ecr:CompleteLayerUpload",
+    "ecr:PutImage"
   ],
-  "security_findings": [],
-  "security_score": 100,
-  "security_level": "Bon",
-  "cloudformation_template": "AWSTemplateFormatVersion: '2010-09-09'...",
-  "terraform_template": "resource \"aws_iam_role\" \"generated_role\" {...}"
+  "resource_name": "backend-api",
+  "resource_arn": "arn:aws:ecr:eu-west-3:123456789012:repository/backend-api",
+  "risk_level": "low",
+  "recommendations": [
+    "Least privilege appliqué automatiquement."
+  ]
 }
 ```
 
-## Ce que le projet ne fait pas encore
+## Déploiement EC2
 
-- Pas encore d'IA.
-- Pas encore de connexion AWS reelle.
-- Pas encore d'audit automatique de compte AWS.
-- Pas encore de validation exhaustive des permissions IAM AWS.
-- Pas encore de deploiement CloudFormation ou Terraform.
+Le projet est documenté pour un déploiement Linux simple sur EC2.
 
-## Roadmap future
+Workflow recommandé :
 
-- Ajouter plus de services AWS.
-- Ajouter plus d'actions IAM.
-- Ameliorer le moteur d'analyse de securite.
-- Ajouter une generation de role IAM plus complete.
-- Ajouter une validation plus precise des ARN.
-- Ajouter une future couche IA pour traduire un besoin utilisateur en policy.
-- Ajouter un mode audit pour analyser des policies existantes.
+```text
+Développement local
+↓
+Commit Git
+↓
+Push GitHub
+↓
+Connexion EC2
+↓
+bash scripts/deploy-ec2.sh
+```
+
+Le script de déploiement effectue :
+
+- `git pull`
+- installation des dépendances backend ;
+- build frontend ;
+- redémarrage des services systemd ;
+- reload Apache.
+
+Commande côté serveur :
+
+```bash
+bash scripts/deploy-ec2.sh
+```
+
+Documentation complémentaire :
+
+- `docs/DEPLOYMENT.md`
+- `docs/BACKEND_PRODUCTION.md`
+- `docs/FRONTEND_PRODUCTION.md`
+- `docs/AWS_EC2_ARCHITECTURE.md`
+- `docs/NGINX_EXPLANATION.md`
+
+## Captures écran
+
+> Placeholders à remplacer par de vraies captures du SaaS.
+
+### Analyse IAM intelligente
+
+```text
+[Screenshot placeholder: formulaire d'analyse IAM avec actions proposées]
+```
+
+### Policy JSON générée
+
+```text
+[Screenshot placeholder: policy JSON interactive avec ARN généré]
+```
+
+### Assistant IA IAM
+
+```text
+[Screenshot placeholder: réponse OpenAI dans l'interface]
+```
+
+## Sécurité
+
+Le projet met en avant plusieurs bonnes pratiques IAM :
+
+- éviter `Resource: "*"` ;
+- préférer des ARN précis ;
+- identifier les permissions sensibles ;
+- afficher un score de risque ;
+- séparer trust policy et permission policy ;
+- conserver les clés API hors du code source.
+
+Ce projet ne déploie pas automatiquement de ressources AWS.
+
+## Roadmap
+
+- IAM Simulator.
+- Terraform avancé.
+- Multi-services complexes.
+- Analyse de policies existantes.
+- Fonctionnalités proches de IAM Access Analyzer.
+- Explication IA permission par permission.
+- Détection automatique des ressources depuis un compte AWS.
+- Génération de rôles IAM prêts pour production.
+- Gestion multi-comptes et multi-régions.
+
+## Statut
+
+Projet MVP actif, orienté portfolio, pédagogie cloud security et préparation
+SaaS.
