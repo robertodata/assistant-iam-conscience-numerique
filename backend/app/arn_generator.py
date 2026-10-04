@@ -1,14 +1,37 @@
-# Ce module genere des ARN AWS pedagogiques a partir d'un service et d'un nom
-# de ressource detecte dans une phrase utilisateur.
+import os
+
+
+DEFAULT_AWS_REGION = "eu-west-3"
+DEFAULT_AWS_ACCOUNT_ID = "123456789012"
+
+
+def get_aws_region() -> str:
+    return os.getenv("AWS_REGION", DEFAULT_AWS_REGION).strip() or DEFAULT_AWS_REGION
+
+
+def get_aws_account_id() -> str:
+    return (
+        os.getenv("AWS_ACCOUNT_ID", DEFAULT_AWS_ACCOUNT_ID).strip()
+        or DEFAULT_AWS_ACCOUNT_ID
+    )
 
 
 def generate_arn(
     service: str,
     resource_name: str,
-    region: str = "eu-west-3",
-    account_id: str = "123456789012",
+    region: str | None = None,
+    account_id: str | None = None,
 ) -> str | list[str] | None:
+    """Construit un ARN à partir d'un service et d'un nom de ressource.
+
+    La région et l'identifiant de compte peuvent être passés explicitement ou
+    fournis par l'environnement. Les valeurs par défaut restent volontairement
+    fictives pour que le projet fonctionne en local sans dépendre d'un compte AWS.
+    """
+
     normalized_service = service.lower()
+    region = region or get_aws_region()
+    account_id = account_id or get_aws_account_id()
 
     if normalized_service == "s3":
         return [
