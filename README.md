@@ -1,138 +1,82 @@
 # Assistant IAM Conscience Numérique
 
-Assistant IAM intelligent pour AWS, basé sur un moteur NLP pédagogique, une
-analyse de sécurité IAM et une première intégration OpenAI.
+Ce projet part d'un besoin simple : rendre AWS IAM plus lisible.
 
-Le projet aide à transformer une demande en langage naturel en permissions IAM
-compréhensibles, avec génération d'ARN, recommandations de sécurité et exports
-Infrastructure as Code.
+Au lieu de demander à quelqu'un de connaître immédiatement les noms exacts des
+permissions AWS, l'assistant accepte une demande formulée en langage courant,
+essaie d'identifier le service concerné, propose les actions IAM utiles, construit
+les ARN quand il dispose d'assez d'informations et signale les permissions qui
+méritent une attention particulière.
 
-## Vision
+Le projet sert à la fois de laboratoire technique, de support pédagogique et de
+base pour une future intégration dans Conscience Numérique.
 
-L'objectif est de construire progressivement un assistant SaaS capable d'aider
-un utilisateur à comprendre, générer et sécuriser des permissions AWS IAM.
+## Ce que l'assistant sait faire aujourd'hui
 
-Le MVP met l'accent sur :
+Le MVP permet notamment de :
 
-- la pédagogie IAM ;
-- le principe du moindre privilège ;
-- la détection de risques simples ;
-- la génération d'exports réutilisables ;
-- l'intégration progressive de l'IA.
+- analyser une demande IAM écrite en langage naturel ;
+- reconnaître plusieurs services AWS courants ;
+- proposer des actions IAM adaptées à l'intention détectée ;
+- générer une trust policy et une permission policy ;
+- construire des ARN pour plusieurs types de ressources ;
+- attirer l'attention sur `Resource: "*"`, les wildcards et certaines
+  permissions sensibles ;
+- produire un score de risque simple ;
+- générer des exemples Terraform et CloudFormation ;
+- fournir une explication pédagogique via OpenAI lorsque cette intégration est
+  configurée ;
+- conserver un historique local côté interface ;
+- vérifier le backend et le build du frontend avec GitHub Actions.
 
-## Fonctionnalités
-
-- Analyse IAM en langage naturel.
-- Détection de services AWS et d'intentions IAM.
-- Génération de permissions IAM proposées.
-- Sélection interactive des permissions.
-- Génération intelligente d'ARN AWS.
-- Application automatique du Least Privilege lorsque la ressource est détectée.
-- Intégration OpenAI pour expliquer des concepts IAM.
-- Génération de policy IAM JSON.
-- Export Terraform.
-- Export CloudFormation.
-- Score de risque IAM.
-- Recommandations de sécurité.
-- Historique local des générations.
-- Tests backend automatisés.
+L'analyse principale reste volontairement déterministe. L'appel à un modèle IA
+n'est pas utilisé pour décider automatiquement quelles permissions doivent être
+accordées.
 
 ## Architecture
 
 ```text
 Utilisateur
-↓
+   |
+   v
 Frontend Next.js
-↓
-FastAPI backend
-↓
-Moteur IAM NLP
-↓
-OpenAI
-↓
-Génération IAM
+   |
+   v
+API FastAPI
+   |
+   +--> moteur IAM / règles locales
+   |
+   +--> analyse de sécurité
+   |
+   +--> génération JSON / Terraform / CloudFormation
+   |
+   `--> OpenAI pour les explications, si activé
 ```
-
-### Frontend
-
-- Next.js
-- React
-- TypeScript
-- CSS global sobre et responsive
-
-Le frontend permet :
-
-- d'analyser une demande IAM ;
-- de sélectionner les actions IAM proposées ;
-- de visualiser une policy JSON ;
-- de copier ou exporter les résultats ;
-- d'interroger l'assistant IA IAM.
 
 ### Backend
 
-- FastAPI
-- Python
-- Pytest
+Le backend est écrit en Python avec FastAPI.
 
-Le backend contient :
+Les principaux modules se trouvent dans `backend/app/` :
 
-- un catalogue de services AWS ;
-- un moteur NLP IAM déterministe ;
-- un générateur d'ARN ;
-- un générateur de policies ;
-- un analyseur de sécurité ;
-- une intégration OpenAI contrôlée par variable d'environnement.
+- `iam_analyzer.py` : analyse d'une demande libre ;
+- `nlp_parser.py` : interprétation des formulations simples ;
+- `iam_rules.py` : règles IAM connues par le projet ;
+- `arn_generator.py` : construction des ARN ;
+- `iam_engine.py` : génération des rôles et policies ;
+- `iam_validator.py` : validation de règles sensibles ;
+- `security_analyzer.py` : score et constats de sécurité ;
+- `iac_generator.py` : exports Terraform et CloudFormation ;
+- `ai_provider.py` : explications via OpenAI.
 
-### Infrastructure
+### Frontend
 
-Le projet est préparé pour une exécution sur :
+L'interface est construite avec Next.js, React et TypeScript.
 
-- AWS EC2 ;
-- Apache en reverse proxy ;
-- HTTPS via Let's Encrypt ;
-- backend FastAPI en service Linux ;
-- frontend Next.js en mode production.
+Elle permet de partir d'un besoin en français, d'examiner les permissions
+proposées et de consulter les différents résultats avant de les exporter.
 
-### CI/CD
-
-- GitHub Actions
-- Job backend : installation Python et `pytest`
-- Job frontend : installation Node.js et build Next.js
-- Pas de déploiement automatique pour l'instant
-
-## Structure du projet
-
-```text
-assistant-iam-conscience-numerique/
-├── backend/
-│   ├── app/
-│   │   ├── ai_provider.py
-│   │   ├── arn_generator.py
-│   │   ├── aws_service_catalog.py
-│   │   ├── iam_analyzer.py
-│   │   ├── iam_engine.py
-│   │   ├── iam_rules.py
-│   │   ├── iam_validator.py
-│   │   ├── iac_generator.py
-│   │   ├── main.py
-│   │   ├── nlp_parser.py
-│   │   └── security_analyzer.py
-│   ├── tests/
-│   ├── Dockerfile
-│   └── requirements.txt
-├── frontend/
-│   ├── app/
-│   │   ├── globals.css
-│   │   ├── layout.tsx
-│   │   └── page.tsx
-│   ├── Dockerfile
-│   └── package.json
-├── docs/
-├── scripts/
-└── README.md
-```
-
-## Installation locale
+## Lancer le projet en local
 
 ### Backend
 
@@ -144,7 +88,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Vérifier le backend :
+Vérification rapide :
 
 ```bash
 curl http://127.0.0.1:8000/health
@@ -158,51 +102,49 @@ npm install
 npm run dev
 ```
 
-Le frontend local est disponible sur :
+L'interface est alors disponible sur :
 
 ```text
 http://localhost:3000
 ```
 
-### Tests backend
+## Configuration
 
-Depuis la racine du projet :
+Les vraies valeurs d'environnement ne doivent pas être versionnées.
 
-```bash
-PYTHONPATH=backend pytest backend/tests
-```
+Des modèles sont fournis dans :
 
-Ou depuis le dossier `backend` :
+- `backend/.env.example`
+- `frontend/.env.example`
 
-```bash
-pytest
-```
-
-## Variables d'environnement
-
-### Backend
-
-Créer un fichier `.env` côté backend si nécessaire :
+Pour le backend, les variables principales sont :
 
 ```env
-OPENAI_API_KEY=sk-...
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4.1-mini
+AI_MAX_TOKENS=200
+AI_TIMEOUT_SECONDS=20
+
+AWS_REGION=eu-west-3
+AWS_ACCOUNT_ID=123456789012
+
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 ```
 
-Si la clé est absente ou vaut `YOUR_OPENAI_API_KEY`, le backend retourne une
-réponse IA simulée. La clé API ne doit jamais être commitée.
+`AWS_ACCOUNT_ID=123456789012` est une valeur d'exemple. En production, il faut
+la remplacer par l'identifiant du compte concerné.
 
-### Frontend
-
-Créer `frontend/.env.local` :
+Pour le frontend :
 
 ```env
 NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
 ```
 
-En production, cette variable peut pointer vers l'API publique :
+Sur Conscience Numérique, cette valeur pourra pointer vers l'API exposée par
+Apache, par exemple :
 
 ```env
-NEXT_PUBLIC_API_URL=https://consciencenumerique.com/api
+NEXT_PUBLIC_API_URL=https://consciencenumerique.com/api/iam
 ```
 
 ## Endpoints principaux
@@ -210,14 +152,14 @@ NEXT_PUBLIC_API_URL=https://consciencenumerique.com/api
 ```text
 GET  /health
 GET  /ai/status
-POST /ai/explain
 GET  /iam/services
 POST /iam/analyze
 POST /parse-request
 POST /generate-policy
+POST /ai/explain
 ```
 
-Exemple d'analyse IAM :
+Exemple :
 
 ```bash
 curl -X POST http://127.0.0.1:8000/iam/analyze \
@@ -227,11 +169,10 @@ curl -X POST http://127.0.0.1:8000/iam/analyze \
   }'
 ```
 
-Exemple de réponse :
+Une réponse peut ressembler à ceci :
 
 ```json
 {
-  "request": "Je veux pousser une image Docker dans le repository backend-api",
   "services": ["ecr"],
   "intents": ["push"],
   "actions": [
@@ -244,101 +185,70 @@ Exemple de réponse :
   ],
   "resource_name": "backend-api",
   "resource_arn": "arn:aws:ecr:eu-west-3:123456789012:repository/backend-api",
-  "risk_level": "low",
-  "recommendations": [
-    "Least privilege appliqué automatiquement."
-  ]
+  "risk_level": "low"
 }
 ```
 
-## Déploiement EC2
+## Tests et intégration continue
 
-Le projet est documenté pour un déploiement Linux simple sur EC2.
-
-Workflow recommandé :
-
-```text
-Développement local
-↓
-Commit Git
-↓
-Push GitHub
-↓
-Connexion EC2
-↓
-bash scripts/deploy-ec2.sh
-```
-
-Le script de déploiement effectue :
-
-- `git pull`
-- installation des dépendances backend ;
-- build frontend ;
-- redémarrage des services systemd ;
-- reload Apache.
-
-Commande côté serveur :
+Les tests backend peuvent être lancés depuis la racine :
 
 ```bash
-bash scripts/deploy-ec2.sh
+PYTHONPATH=backend pytest backend/tests
 ```
 
-Documentation complémentaire :
+Le workflow GitHub Actions vérifie également :
 
-- `docs/DEPLOYMENT.md`
+- les tests Python ;
+- le build Next.js.
+
+Le déploiement vers EC2 reste volontairement manuel pour le moment.
+
+## Déploiement sur l'EC2 Conscience Numérique
+
+Le serveur Conscience Numérique utilise Apache. L'objectif n'est donc pas
+d'installer un second serveur web, mais d'intégrer proprement l'assistant derrière
+l'Apache déjà en place.
+
+La documentation correspondante se trouve dans :
+
+- `docs/PRODUCTION_APACHE.md`
+- `docs/EXISTING_EC2_AUDIT.md`
 - `docs/BACKEND_PRODUCTION.md`
 - `docs/FRONTEND_PRODUCTION.md`
-- `docs/AWS_EC2_ARCHITECTURE.md`
-- `docs/NGINX_EXPLANATION.md`
 
-## Captures écran
-
-> Placeholders à remplacer par de vraies captures du SaaS.
-
-### Analyse IAM intelligente
-
-```text
-[Screenshot placeholder: formulaire d'analyse IAM avec actions proposées]
-```
-
-### Policy JSON générée
-
-```text
-[Screenshot placeholder: policy JSON interactive avec ARN généré]
-```
-
-### Assistant IA IAM
-
-```text
-[Screenshot placeholder: réponse OpenAI dans l'interface]
-```
+Le script `scripts/deploy-ec2.sh` prépare le cycle classique : récupération du
+code, installation des dépendances, build du frontend, redémarrage des services
+et reload d'Apache.
 
 ## Sécurité
 
-Le projet met en avant plusieurs bonnes pratiques IAM :
+Le dépôt ne contient pas de clé AWS ni de clé OpenAI réelle.
 
-- éviter `Resource: "*"` ;
-- préférer des ARN précis ;
-- identifier les permissions sensibles ;
-- afficher un score de risque ;
-- séparer trust policy et permission policy ;
-- conserver les clés API hors du code source.
+Les fichiers `.env` sont ignorés par Git. Seuls les modèles
+`.env.example` doivent être versionnés.
 
-Ce projet ne déploie pas automatiquement de ressources AWS.
+Avant d'ouvrir l'API à des utilisateurs externes, il restera à ajouter :
 
-## Roadmap
+- une authentification ;
+- une limitation du nombre de requêtes ;
+- des quotas sur les fonctions qui peuvent générer un coût ;
+- un suivi de consommation ;
+- une revue plus poussée des policies avant application sur un compte réel.
 
-- IAM Simulator.
-- Terraform avancé.
-- Multi-services complexes.
-- Analyse de policies existantes.
-- Fonctionnalités proches de IAM Access Analyzer.
-- Explication IA permission par permission.
-- Détection automatique des ressources depuis un compte AWS.
-- Génération de rôles IAM prêts pour production.
-- Gestion multi-comptes et multi-régions.
+Les règles de sécurité du projet sont précisées dans `SECURITY.md`.
 
-## Statut
+## Suite prévue
 
-Projet MVP actif, orienté portfolio, pédagogie cloud security et préparation
-SaaS.
+Les prochaines étapes prévues sont surtout fonctionnelles :
+
+- simulation IAM plus avancée ;
+- analyse de policies existantes ;
+- meilleure couverture des services AWS ;
+- gestion multi-régions et multi-comptes ;
+- découpage du frontend en composants plus petits ;
+- intégration progressive dans la plateforme Conscience Numérique.
+
+Le projet reste un MVP actif. Il est suffisamment structuré pour servir de base
+solide, mais il ne cherche pas encore à remplacer les outils natifs d'AWS ni une
+revue IAM professionnelle.
