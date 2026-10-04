@@ -1,10 +1,7 @@
 from fastapi import HTTPException
 
+from .arn_generator import generate_arn
 from .iam_rules import IAM_RULES
-
-
-# Ce fichier contient le moteur IAM simple du projet :
-# permissions disponibles, role_name, trust policy et permission policy.
 
 
 trust_policy_services = {
@@ -86,7 +83,6 @@ def build_trust_policy(aws_service_type: str) -> dict:
             ),
         )
 
-    # La trust policy indique quel service AWS a le droit d'utiliser le role.
     return {
         "Version": "2012-10-17",
         "Statement": [
@@ -101,28 +97,24 @@ def build_trust_policy(aws_service_type: str) -> dict:
     }
 
 
-def build_resource(service: str, resource_name: str | None) -> tuple[str | list[str], list[str]]:
+def build_resource(
+    service: str,
+    resource_name: str | None,
+) -> tuple[str | list[str], list[str]]:
     warnings = []
 
     if not resource_name:
-        # Resource "*" est risque car la permission peut s'appliquer a toutes
-        # les ressources du service au lieu d'une ressource precise.
         warnings.append("Attention : Resource '*' donne un acces trop large.")
         return "*", warnings
 
-    if service == "s3":
-        # Un ARN est l'identifiant unique d'une ressource AWS.
-        # Pour S3, on cible le bucket et les objets contenus dans ce bucket.
-        return [
-            f"arn:aws:s3:::{resource_name}",
-            f"arn:aws:s3:::{resource_name}/*",
-        ], warnings
+    resource = generate_arn(service, resource_name)
 
-    if service == "dynamodb":
-        # Preciser une ressource limite la policy a une table et respecte mieux
-        # le principe du Least Privilege.
-        return f"arn:aws:dynamodb:eu-west-3:123456789012:table/{resource_name}", warnings
+    if resource is not None:
+        return resource, warnings
 
+    warnings.append(
+        f"ARN non géré pour le service '{service}' : Resource '*' a été conservé."
+    )
     return "*", warnings
 
 

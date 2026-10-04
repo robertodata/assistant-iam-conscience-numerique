@@ -1,6 +1,8 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .ai_provider import generate_ai_explanation, is_openai_configured
 from .iam_analyzer import analyze_iam_request
@@ -9,13 +11,10 @@ from .iac_generator import build_cloudformation_template, build_terraform_templa
 from .iam_engine import (
     build_explanations,
     build_multi_role_name,
-    build_permission_policy,
     build_permission_items,
     build_permission_policy_from_items,
-    build_resource,
     build_role_name,
     build_trust_policy,
-    get_actions_for_request,
 )
 from .iam_validator import validate_iam_policy
 from .nlp_parser import parse_user_request
@@ -26,13 +25,30 @@ from .security_analyzer import (
 )
 
 
-# Ce fichier garde l'application FastAPI et les routes principales.
+DEFAULT_CORS_ORIGINS = [
+    "http://127.0.0.1:3000",
+    "http://localhost:3000",
+]
 
-app = FastAPI(title="Assistant IAM Conscience Numerique")
+
+def get_allowed_origins() -> list[str]:
+    raw_origins = os.getenv("CORS_ALLOWED_ORIGINS")
+
+    if not raw_origins:
+        return DEFAULT_CORS_ORIGINS
+
+    return [
+        origin.strip()
+        for origin in raw_origins.split(",")
+        if origin.strip()
+    ]
+
+
+app = FastAPI(title="Assistant IAM Conscience Numérique")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:3000", "http://localhost:3000"],
+    allow_origins=get_allowed_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -49,15 +65,15 @@ class PolicyRequest(BaseModel):
 
 
 class ParseRequest(BaseModel):
-    text: str
+    text: str = Field(min_length=1, max_length=4000)
 
 
 class AiExplainRequest(BaseModel):
-    prompt: str
+    prompt: str = Field(min_length=1, max_length=2500)
 
 
 class IamAnalyzeRequest(BaseModel):
-    request: str
+    request: str = Field(min_length=1, max_length=4000)
 
 
 @app.get("/health")
@@ -67,15 +83,11 @@ def health_check() -> dict[str, str]:
 
 @app.post("/parse-request")
 def parse_request(request: ParseRequest) -> dict:
-    # Ce endpoint transforme une phrase utilisateur en intention IAM simple.
-    # Pour l'instant, il utilise uniquement des mots-cles et aucune IA externe.
     return parse_user_request(request.text)
 
 
 @app.post("/ai/explain")
 def explain_with_ai(request: AiExplainRequest) -> dict[str, str]:
-    # Ce endpoint prepare une future integration IA.
-    # Aujourd'hui, il retourne seulement une reponse simulee.
     return {"explanation": generate_ai_explanation(request.prompt)}
 
 
@@ -86,23 +98,16 @@ def get_ai_status() -> dict[str, bool]:
 
 @app.get("/iam/services")
 def get_iam_services() -> dict:
-    # Cette route expose le catalogue des services IAM connus par le backend.
-    # Elle prepare l'interface a proposer plus de services AWS progressivement.
     return list_supported_services()
 
 
 @app.post("/iam/analyze")
 def analyze_iam(request: IamAnalyzeRequest) -> dict:
-    # Cette analyse reste deterministe : elle utilise le catalogue local et
-    # des mots-cles simples, sans appel OpenAI.
     return analyze_iam_request(request.request)
 
 
 @app.post("/generate-policy")
 def generate_policy(request: PolicyRequest) -> dict:
-    # Ce endpoint recoit une demande simple et retourne un role IAM complet.
-    # Une requete POST sert a envoyer des donnees au backend.
-    # Le JSON recu est transforme en objet Python grace au modele PolicyRequest.
     aws_service_type = request.aws_service_type.lower()
     mode = request.mode.lower()
 
@@ -156,7 +161,6 @@ def generate_policy(request: PolicyRequest) -> dict:
         policy,
     )
 
-    # Le backend retourne ici un dictionnaire Python converti en JSON.
     return {
         "role_name": role_name,
         "trust_policy": trust_policy,
